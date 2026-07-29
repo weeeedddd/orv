@@ -32,6 +32,25 @@ und `K` das Charakterblatt.
 In IntelliJ kann der Projektordner direkt als Gradle-Projekt geöffnet
 werden. Als Gradle-JVM muss Java 21 ausgewählt sein.
 
+## Shader im Test-Client
+
+`runClient` lädt automatisch die stabilen NeoForge-1.21.1-Versionen von
+Iris (`1.8.12`) und Sodium (`0.6.13`). Die Abhängigkeiten gelten nur für
+den Client-Run: Sie werden weder in die ORV-JAR eingebettet noch einem
+Dedicated-Server hinzugefügt.
+
+Shaderpacks als unveränderte `.zip`-Dateien kommen nach:
+
+```text
+run/client/shaderpacks/
+```
+
+Danach können sie in Minecraft unter
+`Options -> Video Settings -> Shader Packs` ausgewählt werden. Für eine
+normale Minecraft-Installation außerhalb der Entwicklungsumgebung müssen
+Iris und Sodium separat in denselben NeoForge-1.21.1-Modordner installiert
+werden.
+
 ## Coin-System
 
 Coins liegen im persistenten `orv:coin_data`-Attachment. Der konkrete

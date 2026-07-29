@@ -17,8 +17,33 @@ java {
     }
 }
 
+repositories {
+    // Modrinth Maven coordinates and repository layout:
+    // https://support.modrinth.com/en/articles/8801191-modrinth-maven
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = 'Modrinth'
+                url = 'https://api.modrinth.com/maven'
+            }
+        }
+        filter {
+            includeGroup 'maven.modrinth'
+        }
+    }
+}
+
 sourceSets.main.resources {
     srcDir 'src/generated/resources'
+}
+
+configurations {
+    shaderRuntime {
+        canBeConsumed = false
+        canBeResolved = true
+        transitive = false
+        description = 'Client-only Iris and Sodium runtime for runClient'
+    }
 }
 
 runs {
@@ -31,6 +56,13 @@ runs {
 
     client {
         systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+
+        // Run-scoped dependencies keep client-only rendering mods out of
+        // dedicated-server runs and the distributable ORV jar:
+        // https://docs.neoforged.net/toolchain/docs/dependencies/nonmclibs/
+        dependencies {
+            runtime project.configurations.shaderRuntime
+        }
     }
 
     server {
@@ -45,6 +77,9 @@ runs {
 
 dependencies {
     implementation "net.neoforged:neoforge:${neo_version}"
+
+    shaderRuntime "maven.modrinth:iris:${iris_version}"
+    shaderRuntime "maven.modrinth:sodium:${sodium_version}"
 
     testImplementation platform('org.junit:junit-bom:5.13.4')
     testImplementation 'org.junit.jupiter:junit-jupiter'
