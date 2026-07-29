@@ -64,11 +64,14 @@ Administratoren ab Permission-Level 2 können folgende Befehle verwenden:
 /orv coins add <targets> <amount>
 /orv coins remove <targets> <amount>
 /orv coins set <targets> <amount>
+/orv level add <amount>
+/orv level set <level>
 ```
 
 `<targets>` unterstützt normale Minecraft-Spielerselektoren wie `@s`,
-`@p` oder `@a`. Die NBT-Persistenz und Transaktionsregeln werden über
-JUnit-Tests abgedeckt.
+`@p` oder `@a`. Die Level-Befehle verändern das eigene ORV-Strength-Level,
+das auch für die Guild-Gründung geprüft wird. Die NBT-Persistenz und
+Transaktionsregeln werden über JUnit-Tests abgedeckt.
 
 ## System-Synchronisierung
 

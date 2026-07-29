@@ -52,6 +52,38 @@ class OrvCommandsTest {
     }
 
     @Test
+    void registersAdministrativeStrengthLevelCommands() {
+        CommandDispatcher<CommandSourceStack> dispatcher =
+                new CommandDispatcher<>();
+        OrvCommands.register(dispatcher);
+        CommandNode<CommandSourceStack> orv =
+                requiredChild(dispatcher.getRoot(), "orv");
+        CommandNode<CommandSourceStack> level =
+                requiredChild(orv, "level");
+
+        assertAmountPath(level, "add");
+        assertAmountPath(level, "set");
+    }
+
+    @Test
+    void restrictsStrengthLevelCommandsToPermissionLevelTwo() {
+        CommandDispatcher<CommandSourceStack> dispatcher =
+                new CommandDispatcher<>();
+        OrvCommands.register(dispatcher);
+        CommandNode<CommandSourceStack> level = requiredChild(
+                requiredChild(dispatcher.getRoot(), "orv"),
+                "level"
+        );
+        CommandSourceStack regularPlayer = mock(CommandSourceStack.class);
+        CommandSourceStack administrator = mock(CommandSourceStack.class);
+        when(regularPlayer.hasPermission(2)).thenReturn(false);
+        when(administrator.hasPermission(2)).thenReturn(true);
+
+        assertFalse(level.canUse(regularPlayer));
+        assertTrue(level.canUse(administrator));
+    }
+
+    @Test
     void letsAnyPlayerOpenTheirOwnWindows() {
         CommandDispatcher<CommandSourceStack> dispatcher =
                 new CommandDispatcher<>();
@@ -79,6 +111,13 @@ class OrvCommandsTest {
         CommandNode<CommandSourceStack> targets =
                 requiredChild(operationNode, "targets");
         requiredChild(targets, "amount");
+    }
+
+    private static void assertAmountPath(
+            CommandNode<CommandSourceStack> parent,
+            String operation
+    ) {
+        requiredChild(requiredChild(parent, operation), "amount");
     }
 
     private static CommandNode<CommandSourceStack> requiredChild(

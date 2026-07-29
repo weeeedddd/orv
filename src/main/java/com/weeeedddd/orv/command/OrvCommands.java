@@ -1,8 +1,10 @@
 package com.weeeedddd.orv.command;
 
 import com.mojang.brigadier.Command;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
+import com.weeeedddd.orv.character.StrengthService;
 import com.weeeedddd.orv.guild.GuildCreationCheck;
 import com.weeeedddd.orv.guild.GuildService;
 import com.weeeedddd.orv.guild.GuildStorage;
@@ -37,8 +39,8 @@ public final class OrvCommands {
         dispatcher.register(
                 Commands.literal("orv")
                         // The root is open so players can reach their own
-                        // windows; only the coin subtree needs operator
-                        // rights.
+                        // windows; only administrative mutation subtrees
+                        // need operator rights.
                         .then(Commands.literal("coins")
                                 .requires(source -> source.hasPermission(
                                         ADMIN_PERMISSION_LEVEL
@@ -49,6 +51,19 @@ public final class OrvCommands {
                                         Operation.REMOVE
                                 ))
                                 .then(transaction("set", Operation.SET))
+                        )
+                        .then(Commands.literal("level")
+                                .requires(source -> source.hasPermission(
+                                        ADMIN_PERMISSION_LEVEL
+                                ))
+                                .then(levelOperation(
+                                        "add",
+                                        LevelOperation.ADD
+                                ))
+                                .then(levelOperation(
+                                        "set",
+                                        LevelOperation.SET
+                                ))
                         )
                         .then(openScreen("status", Target.STATUS))
                         // Alias, so a spoken "open window" maps to a command.
@@ -142,6 +157,61 @@ public final class OrvCommands {
                 );
     }
 
+    private static LiteralArgumentBuilder<CommandSourceStack> levelOperation(
+            String name,
+            LevelOperation operation
+    ) {
+        return Commands.literal(name)
+                .then(Commands.argument(
+                                "amount",
+                                IntegerArgumentType.integer(0)
+                        )
+                        .executes(context -> executeLevelOperation(
+                                context.getSource(),
+                                IntegerArgumentType.getInteger(
+                                        context,
+                                        "amount"
+                                ),
+                                operation
+                        ))
+                );
+    }
+
+    private static int executeLevelOperation(
+            CommandSourceStack source,
+            int amount,
+            LevelOperation operation
+    ) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            source.sendFailure(Component.literal(
+                    "This command must be run by a player."
+            ));
+            return 0;
+        }
+
+        try {
+            int newLevel = switch (operation) {
+                case ADD -> StrengthService.addLevels(player, amount);
+                case SET -> StrengthService.setLevel(player, amount);
+            };
+            source.sendSuccess(
+                    () -> Component.translatable(
+                            operation.translationKey,
+                            amount,
+                            newLevel
+                    ),
+                    true
+            );
+            return Command.SINGLE_SUCCESS;
+        } catch (ArithmeticException exception) {
+            source.sendFailure(Component.translatable(
+                    "commands.orv.level.overflow"
+            ));
+            return 0;
+        }
+    }
+
     private static int executeTransaction(
             CommandSourceStack source,
             Collection<ServerPlayer> targets,
@@ -211,6 +281,17 @@ public final class OrvCommands {
         private final String translationKey;
 
         Operation(String translationKey) {
+            this.translationKey = translationKey;
+        }
+    }
+
+    private enum LevelOperation {
+        ADD("commands.orv.level.add.success"),
+        SET("commands.orv.level.set.success");
+
+        private final String translationKey;
+
+        LevelOperation(String translationKey) {
             this.translationKey = translationKey;
         }
     }
