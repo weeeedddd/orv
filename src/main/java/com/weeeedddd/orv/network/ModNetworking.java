@@ -75,6 +75,8 @@ public final class ModNetworking {
                         player.getUUID(),
                         CoinService.getCoins(player),
                         data.energy(),
+                        data.maxEnergy(),
+                        data.channelId(),
                         ModAttachments.getSponsor(player)
                                 .constellationName()
                 )

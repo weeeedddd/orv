@@ -22,48 +22,58 @@ import java.io.IOException;
 public final class PreviewStatusHud {
 
     // Mirrored from ORVOverlayHud.
-    private static final int PANEL_BACKGROUND = 0xCC0B0E14;
-    private static final int PANEL_UNDERLAY = 0x550B0E14;
-    private static final int ACCENT_CYAN = 0xFF00E5FF;
+    private static final int BAR_FILL = 0xEE0A0C12;
+    private static final int CHANNEL_TEXT = 0xFFE9EEF3;
     private static final int COINS_GOLD = 0xFFFFD700;
-    private static final int ENERGY_BLUE = 0xFF55FFFF;
     private static final int STRENGTH_RED = 0xFFFF5555;
+    private static final int ENERGY_BLUE = 0xFF55FFFF;
     private static final int CONSTELLATION_PURPLE = 0xFFAA55FF;
-    private static final int PANEL_X = 12;
-    private static final int PANEL_Y = 12;
-    private static final int MIN_PANEL_WIDTH = 248;
-    private static final int PANEL_HEIGHT = 110;
-    private static final int UNDERLAY_OFFSET = 4;
-    private static final int SEAL_INSET = 8;
-    private static final int HEADER_TOP = 6;
-    private static final int DIVIDER_Y = 34;
-    private static final int ROW_TOP = 42;
-    private static final int ROW_STEP = 15;
-    private static final int ICON_X = 12;
-    private static final int TEXT_X = 34;
-    private static final int MOTE_COUNT = 14;
+    private static final int CONSTELLATION_VALUE = 0xFFC9A0FF;
+    private static final int PLATE_TEXT = 0xFFE8D8B0;
+    private static final int GLOW_CYAN = 0xFF00E5FF;
+    private static final int BAR_TOP = 8;
+    private static final int BAR_HEIGHT = 34;
+    private static final int BAR_MARGIN = 16;
+    private static final int BAR_MAX_WIDTH = 1120;
+    private static final int BAR_MIN_WIDTH = 260;
+    private static final int SEGMENT_GAP = 16;
+    private static final int SEGMENT_GAP_MIN = 8;
+    private static final int ICON_GAP = 4;
+    private static final int CONSTELLATION_MIN_WIDTH = 70;
+    private static final int MOTE_COUNT = 18;
 
     // Mirrored from StatusAtlas.
-    private static final int ATLAS_SIZE = 128;
+    private static final int ATLAS_W = 256;
+    private static final int ATLAS_H = 128;
     private static final int FRAME_SIZE = 48;
     private static final int FRAME_CORNER = 16;
-    private static final int SEAL_SIZE = 24;
+    private static final int ROSETTE_SIZE = 24;
     private static final int SEAL_U = 48;
+    private static final int SEAL_V = 0;
+    private static final int GEM_U = 48;
+    private static final int GEM_V = 24;
+    private static final int ICON_SIZE = 16;
     private static final int ICON_COIN_U = 72;
     private static final int ICON_ENERGY_U = 88;
     private static final int ICON_SWORD_U = 104;
     private static final int STAR_OFF_U = 72;
     private static final int STAR_ON_U = 88;
     private static final int STAR_V = 16;
-    private static final int HORN_U = 104;
-    private static final int HORN_V = 16;
-    private static final int HORN_SIZE = 8;
+    private static final int BRACKET_W = 40;
+    private static final int BRACKET_H = 48;
+    private static final int BRACKET_L_U = 128;
+    private static final int BRACKET_R_U = 168;
+    private static final int PLATE_U = 208;
+    private static final int PLATE_SIZE = 24;
+    private static final int PLATE_CORNER = 8;
+    private static final int DOKKAEBI_U = 232;
+    private static final int DOKKAEBI_SIZE = 16;
     private static final int LAB_V = 48;
     private static final int LAB_W = 64;
     private static final int LAB_H = 32;
 
-    private static final int SCREEN_W = 640;
-    private static final int SCREEN_H = 360;
+    private static int SCREEN_W = 960;
+    private static int SCREEN_H = 540;
     private static final int ADVANCE = 6;
     private static final int LINE_HEIGHT = 9;
 
@@ -75,94 +85,137 @@ public final class PreviewStatusHud {
         atlas = ImageIO.read(new File(
                 "src/main/resources/assets/orv/textures/gui/status_hud.png"));
 
-        render("empty", 0L, 0L, 0, "None");
-        render("filled", 1250L, 340L, 7, "Demon-like Judge of Fire");
+        render("bar-active", 12L, 30L, 100L, 1, "#BIHYUNG-412", "");
+        render("bar-bound", 24680L, 340L, 400L, 42, "#SECRETIVE-001",
+                "Demon-like Judge of Fire");
+
+        // Narrow screen: verifies the gap-tightening and truncation path.
+        SCREEN_W = 640;
+        SCREEN_H = 360;
+        render("bar-narrow", 12L, 30L, 100L, 1, "#BIHYUNG-412", "");
     }
 
-    private static void render(
-            String name,
-            long coins,
-            long energy,
-            int strength,
-            String constellation
-    ) throws IOException {
+    private record Seg(int iconU, boolean lit, String label, String value,
+                       int labelColor, int valueColor) {
+        static final int NO_ICON = -1;
+        static final int STAR_ICON = -2;
+
+        int width() {
+            int t = Math.max(label.length() * ADVANCE,
+                    value == null ? 0 : value.length() * ADVANCE);
+            return t + (iconU == NO_ICON ? 0 : ICON_SIZE + ICON_GAP);
+        }
+    }
+
+    private static void render(String name, long coins, long energy,
+                               long maxEnergy, int strength, String channel,
+                               String constellation) throws IOException {
         newCanvas();
 
-        String title = "[ SYSTEM STATUS ]";
-        String coinsText = "Coins: " + coins;
-        String energyText = "Energy: " + energy;
-        String strengthText = "Strength: Lv. " + strength;
-        String constellationText = "Constellation: " + constellation;
-        boolean lit = !"None".equals(constellation);
+        int barWidth = Math.max(BAR_MIN_WIDTH,
+                Math.min(BAR_MAX_WIDTH, SCREEN_W - BAR_MARGIN * 2));
+        int barX = (SCREEN_W - barWidth) / 2;
 
-        int rowsWidth = width(coinsText);
-        rowsWidth = Math.max(rowsWidth, width(energyText));
-        rowsWidth = Math.max(rowsWidth, width(strengthText));
-        rowsWidth = Math.max(rowsWidth, width(constellationText));
+        // --- bar chrome ---
+        rect(barX + 3, BAR_TOP + 3, barX + barWidth - 3,
+                BAR_TOP + BAR_HEIGHT - 3, BAR_FILL);
+        tile(0, LAB_V, LAB_W, LAB_H, barX + 4, BAR_TOP + 4,
+                barWidth - 8, BAR_HEIGHT - 8, 0.14);
+        nineSlice(0, 0, FRAME_SIZE, FRAME_CORNER, barX, BAR_TOP,
+                barWidth, BAR_HEIGHT);
 
-        int headerWidth = SEAL_INSET * 2 + SEAL_SIZE * 2 + 16 + width(title);
-        int panelWidth = Math.max(MIN_PANEL_WIDTH,
-                Math.max(headerWidth, TEXT_X + rowsWidth + 18));
+        int bracketY = BAR_TOP + (BAR_HEIGHT - BRACKET_H) / 2;
+        int rightBracketX = barX + barWidth - BRACKET_W;
+        blit(barX, bracketY, BRACKET_W, BRACKET_H, BRACKET_L_U, 0,
+                BRACKET_W, BRACKET_H, 1.0);
+        blit(rightBracketX, bracketY, BRACKET_W, BRACKET_H, BRACKET_R_U, 0,
+                BRACKET_W, BRACKET_H, 1.0);
+        int rosetteY = bracketY + (BRACKET_H - ROSETTE_SIZE) / 2;
+        int rosetteInset = (BRACKET_W - ROSETTE_SIZE) / 2;
+        blit(barX + rosetteInset, rosetteY, ROSETTE_SIZE, ROSETTE_SIZE,
+                SEAL_U, SEAL_V, ROSETTE_SIZE, ROSETTE_SIZE, 1.0);
+        blit(rightBracketX + rosetteInset, rosetteY, ROSETTE_SIZE,
+                ROSETTE_SIZE, GEM_U, GEM_V, ROSETTE_SIZE, ROSETTE_SIZE, 1.0);
 
-        // Panel planes.
-        rect(PANEL_X + UNDERLAY_OFFSET, PANEL_Y + UNDERLAY_OFFSET,
-                PANEL_X + panelWidth + UNDERLAY_OFFSET,
-                PANEL_Y + PANEL_HEIGHT + UNDERLAY_OFFSET, PANEL_UNDERLAY);
-        rect(PANEL_X, PANEL_Y, PANEL_X + panelWidth,
-                PANEL_Y + PANEL_HEIGHT, PANEL_BACKGROUND);
+        // --- segments ---
+        boolean lit = !constellation.isBlank();
+        String chan = channel.isBlank() ? "OFFLINE" : channel;
+        Seg[] segs = {
+            new Seg(Seg.NO_ICON, false, "[Kanal: " + chan + "]", null,
+                    CHANNEL_TEXT, CHANNEL_TEXT),
+            new Seg(ICON_COIN_U, false, "Coins: " + coins, null,
+                    COINS_GOLD, COINS_GOLD),
+            new Seg(ICON_SWORD_U, false, "Strength: Lv. " + strength, null,
+                    STRENGTH_RED, STRENGTH_RED),
+            new Seg(ICON_ENERGY_U, false,
+                    "Energy: " + energy + " / " + maxEnergy, null,
+                    ENERGY_BLUE, ENERGY_BLUE),
+            new Seg(Seg.STAR_ICON, lit, "Constellation:",
+                    lit ? "[" + constellation + "]" : "[Searching Star Stream]",
+                    CONSTELLATION_PURPLE, CONSTELLATION_VALUE),
+        };
 
-        // Labyrinth at 22% opacity.
-        tile(0, LAB_V, LAB_W, LAB_H, PANEL_X + 6, PANEL_Y + DIVIDER_Y + 4,
-                panelWidth - 12, PANEL_HEIGHT - DIVIDER_Y - 10, 0.18);
+        int available = barWidth - 2 * BRACKET_W - 8;
+        int gaps = segs.length - 1;
+        int[] widths = new int[segs.length];
+        int content = 0;
+        for (int i = 0; i < segs.length; i++) {
+            widths[i] = segs[i].width();
+            content += widths[i];
+        }
+        int gap = SEGMENT_GAP;
+        if (content + gap * gaps > available && gaps > 0) {
+            gap = Math.max(SEGMENT_GAP_MIN,
+                    Math.min(SEGMENT_GAP, (available - content) / gaps));
+        }
+        int overflow = content + gap * gaps - available;
+        if (overflow > 0) {
+            int last = segs.length - 1;
+            int shrink = Math.min(overflow,
+                    Math.max(0, widths[last] - CONSTELLATION_MIN_WIDTH));
+            widths[last] -= shrink;
+            overflow -= shrink;
+        }
+        if (overflow > 0) {
+            widths[0] -= Math.min(overflow, Math.max(0, widths[0] - 40));
+        }
 
-        // Filigree frame.
-        nineSlice(0, 0, FRAME_SIZE, FRAME_CORNER, PANEL_X, PANEL_Y,
-                panelWidth, PANEL_HEIGHT);
+        int x = barX + BRACKET_W + 4;
+        for (int i = 0; i < segs.length; i++) {
+            drawSeg(segs[i], x, widths[i]);
+            x += widths[i] + gap;
+        }
 
-        // Header.
-        int sealY = PANEL_Y + HEADER_TOP;
-        blit(PANEL_X + SEAL_INSET, sealY, SEAL_SIZE, SEAL_SIZE,
-                SEAL_U, 0, SEAL_SIZE, SEAL_SIZE, 1.0);
-        blit(PANEL_X + panelWidth - SEAL_INSET - SEAL_SIZE, sealY,
-                SEAL_SIZE, SEAL_SIZE, SEAL_U, 0, SEAL_SIZE, SEAL_SIZE, 1.0);
-        draw(title, PANEL_X + (panelWidth - width(title)) / 2,
-                sealY + (SEAL_SIZE - LINE_HEIGHT) / 2, ACCENT_CYAN);
+        // --- hanging plate ---
+        String plateLabel = "[SYSTEM STATUS - INCORPORATED]";
+        int plateWidth = plateLabel.length() * ADVANCE + 26;
+        int plateHeight = 18;
+        int plateX = barX + (barWidth - plateWidth) / 2;
+        int plateY = BAR_TOP + BAR_HEIGHT - 4;
+        nineSlice(PLATE_U, 0, PLATE_SIZE, PLATE_CORNER, plateX, plateY,
+                plateWidth, plateHeight);
+        draw(plateLabel, plateX + (plateWidth - plateLabel.length() * ADVANCE) / 2,
+                plateY + (plateHeight - LINE_HEIGHT) / 2 + 1, PLATE_TEXT, false);
+        blit(barX + (barWidth - DOKKAEBI_SIZE) / 2, plateY + plateHeight - 3,
+                DOKKAEBI_SIZE, DOKKAEBI_SIZE, DOKKAEBI_U, 0,
+                DOKKAEBI_SIZE, DOKKAEBI_SIZE, 1.0);
 
-        int dividerY = PANEL_Y + DIVIDER_Y;
-        rect(PANEL_X + 10, dividerY, PANEL_X + panelWidth - 10,
-                dividerY + 1, ACCENT_CYAN);
-        blit(PANEL_X + 3, dividerY - 4, HORN_SIZE, HORN_SIZE,
-                HORN_U, HORN_V, HORN_SIZE, HORN_SIZE, 1.0);
-        blit(PANEL_X + panelWidth - 3 - HORN_SIZE, dividerY - 4,
-                HORN_SIZE, HORN_SIZE, HORN_U, HORN_V, HORN_SIZE, HORN_SIZE, 1.0);
-
-        // Rows.
-        row(0, coinsText, COINS_GOLD, ICON_COIN_U, 0);
-        row(1, energyText, ENERGY_BLUE, ICON_ENERGY_U, 0);
-        row(2, strengthText, STRENGTH_RED, ICON_SWORD_U, 0);
-        blit(PANEL_X + ICON_X, rowY(3) - 4, 16, 16,
-                lit ? STAR_ON_U : STAR_OFF_U, STAR_V, 16, 16, 1.0);
-        draw(constellationText, PANEL_X + TEXT_X, rowY(3),
-                CONSTELLATION_PURPLE);
-
-        // Motes, sampled at a fixed instant.
-        long millis = 4200L;
-        int[] moteColors = {ACCENT_CYAN, COINS_GOLD, CONSTELLATION_PURPLE};
+        // --- motes, sampled at a fixed instant ---
+        long millis = 5200L;
+        int[] moteColors = {GLOW_CYAN, COINS_GOLD, CONSTELLATION_PURPLE};
         for (int i = 0; i < MOTE_COUNT; i++) {
-            double speed = 0.07 + (i % 4) * 0.015;
-            double phase = ((millis / 1000.0) * speed + i * 0.41) % 1.0;
-            int alpha = (int) (Math.sin(phase * Math.PI) * 120.0);
-            if (alpha <= 6) {
-                continue;
-            }
-            boolean right = i % 2 == 1;
-            double wobble = Math.sin(millis / 900.0 + i * 1.7) * 3.0;
-            int x = right ? PANEL_X + panelWidth - 5 + (int) wobble
-                    : PANEL_X + 4 + (int) wobble;
-            int y = PANEL_Y + PANEL_HEIGHT - 6
-                    - (int) (phase * (PANEL_HEIGHT - 12));
+            double speed = 0.05 + (i % 4) * 0.012;
+            double phase = ((millis / 1000.0) * speed + i * 0.37) % 1.0;
+            int alpha = (int) (Math.sin(phase * Math.PI) * 115.0);
+            if (alpha <= 6) continue;
+            int travel = (int) (phase * (barWidth - 2 * BRACKET_W));
+            int mx = barX + BRACKET_W + travel;
+            boolean lower = i % 2 == 1;
+            double wobble = Math.sin(millis / 950.0 + i * 1.7) * 2.5;
+            int my = (lower ? BAR_TOP + BAR_HEIGHT - 4 : BAR_TOP + 2)
+                    + (int) wobble;
             int size = 1 + (i % 2);
-            rect(x, y, x + size, y + size,
+            rect(mx, my, mx + size, my + size,
                     (alpha << 24) | (moteColors[i % 3] & 0xFFFFFF));
         }
 
@@ -173,27 +226,41 @@ public final class PreviewStatusHud {
                 + "hud-" + name + ".png");
         BufferedImage scaled = new BufferedImage(SCREEN_W * 3, SCREEN_H * 3,
                 BufferedImage.TYPE_INT_RGB);
-        for (int y = 0; y < SCREEN_H * 3; y++) {
-            for (int x = 0; x < SCREEN_W * 3; x++) {
-                scaled.setRGB(x, y, canvas.getRGB(x / 3, y / 3));
-            }
-        }
+        for (int y = 0; y < SCREEN_H * 3; y++)
+            for (int px = 0; px < SCREEN_W * 3; px++)
+                scaled.setRGB(px, y, canvas.getRGB(px / 3, y / 3));
         ImageIO.write(scaled, "PNG", out);
         System.out.println("Wrote " + out.getPath());
     }
 
-    private static void row(int index, String s, int color, int iconU, int v) {
-        int y = rowY(index);
-        blit(PANEL_X + ICON_X, y - 4, 16, 16, iconU, v, 16, 16, 1.0);
-        draw(s, PANEL_X + TEXT_X, y, color);
+    private static void drawSeg(Seg s, int x, int maxWidth) {
+        int textX = x;
+        if (s.iconU() != Seg.NO_ICON) {
+            int iconY = BAR_TOP + (BAR_HEIGHT - ICON_SIZE) / 2;
+            if (s.iconU() == Seg.STAR_ICON) {
+                blit(x, iconY, ICON_SIZE, ICON_SIZE,
+                        s.lit() ? STAR_ON_U : STAR_OFF_U, STAR_V,
+                        ICON_SIZE, ICON_SIZE, 1.0);
+            } else {
+                blit(x, iconY, ICON_SIZE, ICON_SIZE, s.iconU(), 0,
+                        ICON_SIZE, ICON_SIZE, 1.0);
+            }
+            textX += ICON_SIZE + ICON_GAP;
+        }
+        int textWidth = Math.max(0, maxWidth - (textX - x));
+        if (s.value() == null) {
+            draw(fit(s.label(), textWidth), textX,
+                    BAR_TOP + (BAR_HEIGHT - LINE_HEIGHT) / 2, s.labelColor(), true);
+            return;
+        }
+        draw(fit(s.label(), textWidth), textX, BAR_TOP + 6, s.labelColor(), true);
+        draw(fit(s.value(), textWidth), textX, BAR_TOP + 18, s.valueColor(), true);
     }
 
-    private static int rowY(int index) {
-        return PANEL_Y + ROW_TOP + index * ROW_STEP;
-    }
-
-    private static int width(String s) {
-        return s.length() * ADVANCE;
+    private static String fit(String t, int maxWidth) {
+        if (t.length() * ADVANCE <= maxWidth) return t;
+        int chars = Math.max(0, maxWidth / ADVANCE - 1);
+        return chars == 0 ? "" : t.substring(0, Math.min(chars, t.length())) + "\u2026";
     }
 
     // -------------------------------------------------------------------
@@ -300,12 +367,13 @@ public final class PreviewStatusHud {
         }
     }
 
-    private static void draw(String s, int x, int y, int argb) {
-        // Drop shadow, as drawString(..., true) would render it.
-        text.setColor(new Color(darken(argb), true));
-        for (int i = 0; i < s.length(); i++) {
-            text.drawString(String.valueOf(s.charAt(i)),
-                    x + i * ADVANCE + 1, y + LINE_HEIGHT - 1);
+    private static void draw(String s, int x, int y, int argb, boolean shadow) {
+        if (shadow) {
+            text.setColor(new Color(darken(argb), true));
+            for (int i = 0; i < s.length(); i++) {
+                text.drawString(String.valueOf(s.charAt(i)),
+                        x + i * ADVANCE + 1, y + LINE_HEIGHT - 1);
+            }
         }
         text.setColor(new Color(argb, true));
         for (int i = 0; i < s.length(); i++) {
@@ -367,8 +435,8 @@ public final class PreviewStatusHud {
                 int px = dx + i;
                 int py = dy + j;
                 if (px < 0 || py < 0 || px >= SCREEN_W || py >= SCREEN_H
-                        || sx < 0 || sy < 0 || sx >= ATLAS_SIZE
-                        || sy >= ATLAS_SIZE) {
+                        || sx < 0 || sy < 0 || sx >= ATLAS_W
+                        || sy >= ATLAS_H) {
                     continue;
                 }
                 int src = atlas.getRGB(sx, sy);

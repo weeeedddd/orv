@@ -90,6 +90,14 @@ public final class ModAttachments {
         return get(player).energy();
     }
 
+    public static long getMaxEnergy(Player player) {
+        return get(player).maxEnergy();
+    }
+
+    public static String getChannelId(Player player) {
+        return get(player).channelId();
+    }
+
     public static IPlayerSponsor getSponsor(Player player) {
         return player.getData(PLAYER_SPONSOR);
     }
@@ -116,6 +124,22 @@ public final class ModAttachments {
         player.setData(
                 PLAYER_DATA,
                 get(player).withEnergy(energy)
+        );
+        ModNetworking.syncSystemData(player);
+    }
+
+    public static void setMaxEnergy(ServerPlayer player, long maxEnergy) {
+        player.setData(
+                PLAYER_DATA,
+                get(player).withMaxEnergy(maxEnergy)
+        );
+        ModNetworking.syncSystemData(player);
+    }
+
+    public static void setChannelId(ServerPlayer player, String channelId) {
+        player.setData(
+                PLAYER_DATA,
+                get(player).withChannelId(channelId)
         );
         ModNetworking.syncSystemData(player);
     }

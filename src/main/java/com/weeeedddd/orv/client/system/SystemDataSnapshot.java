@@ -10,10 +10,13 @@ public record SystemDataSnapshot(
         UUID playerId,
         long coins,
         long energy,
+        long maxEnergy,
+        String channelId,
         String constellationName
 ) {
     public SystemDataSnapshot {
         Objects.requireNonNull(playerId, "playerId");
+        Objects.requireNonNull(channelId, "channelId");
         Objects.requireNonNull(
                 constellationName,
                 "constellationName"
@@ -27,6 +30,11 @@ public record SystemDataSnapshot(
         if (energy < 0L) {
             throw new IllegalArgumentException(
                     "energy must not be negative"
+            );
+        }
+        if (maxEnergy < 1L) {
+            throw new IllegalArgumentException(
+                    "maxEnergy must be at least 1"
             );
         }
     }

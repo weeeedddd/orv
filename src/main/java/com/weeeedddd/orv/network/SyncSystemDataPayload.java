@@ -16,9 +16,12 @@ public record SyncSystemDataPayload(
         UUID playerId,
         long coins,
         long energy,
+        long maxEnergy,
+        String channelId,
         String constellationName
 ) implements CustomPacketPayload {
     public static final int MAX_CONSTELLATION_NAME_LENGTH = 64;
+    public static final int MAX_CHANNEL_ID_LENGTH = 32;
 
     public static final Type<SyncSystemDataPayload> TYPE = new Type<>(
             ResourceLocation.fromNamespaceAndPath(
@@ -35,6 +38,8 @@ public record SyncSystemDataPayload(
                             buffer.readUUID(),
                             buffer.readVarLong(),
                             buffer.readVarLong(),
+                            buffer.readVarLong(),
+                            buffer.readUtf(MAX_CHANNEL_ID_LENGTH),
                             buffer.readUtf(
                                     MAX_CONSTELLATION_NAME_LENGTH
                             )
@@ -49,6 +54,11 @@ public record SyncSystemDataPayload(
                     buffer.writeUUID(payload.playerId());
                     buffer.writeVarLong(payload.coins());
                     buffer.writeVarLong(payload.energy());
+                    buffer.writeVarLong(payload.maxEnergy());
+                    buffer.writeUtf(
+                            payload.channelId(),
+                            MAX_CHANNEL_ID_LENGTH
+                    );
                     buffer.writeUtf(
                             payload.constellationName(),
                             MAX_CONSTELLATION_NAME_LENGTH
@@ -58,6 +68,7 @@ public record SyncSystemDataPayload(
 
     public SyncSystemDataPayload {
         Objects.requireNonNull(playerId, "playerId");
+        Objects.requireNonNull(channelId, "channelId");
         Objects.requireNonNull(
                 constellationName,
                 "constellationName"
@@ -71,6 +82,17 @@ public record SyncSystemDataPayload(
         if (energy < 0L) {
             throw new IllegalArgumentException(
                     "energy must not be negative"
+            );
+        }
+        if (maxEnergy < 1L) {
+            throw new IllegalArgumentException(
+                    "maxEnergy must be at least 1"
+            );
+        }
+        if (channelId.length() > MAX_CHANNEL_ID_LENGTH) {
+            throw new IllegalArgumentException(
+                    "channelId exceeds " + MAX_CHANNEL_ID_LENGTH
+                            + " characters"
             );
         }
         if (constellationName.length()

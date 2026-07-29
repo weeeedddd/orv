@@ -27,6 +27,8 @@ class ClientSystemPayloadHandlerTest {
                 playerId,
                 77L,
                 21L,
+                100L,
+                "#BIHYUNG-412",
                 "Secretive Plotter"
         );
 
@@ -44,6 +46,8 @@ class ClientSystemPayloadHandlerTest {
                         playerId,
                         77L,
                         21L,
+                        100L,
+                        "#BIHYUNG-412",
                         "Secretive Plotter"
                 ),
                 SystemDataClientCache.find(playerId).orElseThrow()

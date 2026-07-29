@@ -23,6 +23,8 @@ public final class SystemDataClientCache {
                 payload.playerId(),
                 payload.coins(),
                 payload.energy(),
+                payload.maxEnergy(),
+                payload.channelId(),
                 payload.constellationName()
         );
         SNAPSHOTS.put(snapshot.playerId(), snapshot);

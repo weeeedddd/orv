@@ -64,6 +64,7 @@ public final class GuildAtlas {
                 graphics,
                 TEXTURE,
                 ATLAS_SIZE,
+                ATLAS_SIZE,
                 slice.u(),
                 slice.v(),
                 slice.size(),
@@ -90,6 +91,7 @@ public final class GuildAtlas {
                 graphics,
                 TEXTURE,
                 ATLAS_SIZE,
+                ATLAS_SIZE,
                 WOOD_U,
                 WOOD_V,
                 WOOD_TILE,
@@ -111,6 +113,7 @@ public final class GuildAtlas {
         GuiBlit.blit(
                 graphics,
                 TEXTURE,
+                ATLAS_SIZE,
                 ATLAS_SIZE,
                 x,
                 y,

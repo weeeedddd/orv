@@ -53,8 +53,8 @@ JUnit-Tests abgedeckt.
 ## System-Synchronisierung
 
 Der Server sendet `SyncSystemDataPayload` unter der Paket-ID
-`orv:system_sync`. Der Snapshot enthält Spieler-UUID, Coins, Energy und den
-Konstellationsnamen. Auf dem Client veröffentlicht der Handler die Daten nach
+`orv:system_sync`. Der Snapshot enthält Spieler-UUID, Coins, Energy,
+Energy-Maximum, Kanal-Kennung und den Konstellationsnamen. Auf dem Client veröffentlicht der Handler die Daten nach
 `enqueueWork` atomar in einem thread-sicheren Cache; das HUD liest keine
 serverseitigen Attachments als eigene Datenquelle.
 
@@ -144,18 +144,32 @@ Player-Werte gehören in Data Attachments.
 
 ## Status-HUD
 
-Das per GUI-Layer eingehängte `ORVOverlayHud` zeigt Coins, Energy, Strength
-und Constellation als geschichtetes, halbtransparentes Datenpanel: ein
-Filigranrahmen aus Gold und Kupfer mit Eck-Rosetten, flankierende
-Zahnrad-Augen-Siegel um die Kopfzeile, je ein eigenes Sigil pro Zeile
-(Münze, Energiewirbel, Schwertrune, Sternzeichen) und ein schwach
-durchscheinendes „Scenario Path"-Labyrinth hinter den Werten. Farbwerte und
-Texte sind unverändert; das Sternzeichen-Sigil leuchtet erst, wenn eine
-Konstellation gesetzt ist.
+`ORVOverlayHud` rendert die ORV-Systemleiste als Topbar: ein Filigranrahmen
+mit ornamentalen Endkonsolen, links das Zahnrad-Augen-Siegel, rechts der
+facettierte Edelstein, dahinter ein schwach durchscheinendes
+„Scenario Path"-Labyrinth. Darunter hängt die Statusplatte mit dem
+Kanalmeister-Kopf.
+
+Die Leiste zeigt fünf Spalten: Kanal, Coins, Strength, Energy (als
+`wert / max`) und Constellation. Jede Spalte hat ihr eigenes Sigil; das
+Sternzeichen leuchtet erst, wenn eine Konstellation gesetzt ist, sonst
+steht dort `[Searching Star Stream]`.
+
+Alle Werte stammen aus dem serverautoritativen Snapshot
+(`SystemDataClientCache`), nicht aus Client-Zustand. `maxEnergy` und
+`channelId` liegen im `orv:player_data`-Attachment und werden über
+`SyncSystemDataPayload` mitgesendet; beide Codec-Felder sind optional,
+damit Welten von vor ihrer Einführung weiter laden. Serverseitig gesetzt
+werden sie über `ModAttachments.setMaxEnergy(...)` und
+`ModAttachments.setChannelId(...)`.
+
+Passt der Inhalt nicht in die Leiste, werden zuerst die Spaltenabstände
+gestaucht, danach die Konstellation und zuletzt der Kanal mit Ellipse
+gekürzt — die Zahlenwerte bleiben immer vollständig lesbar.
 
 Der Atlas liegt in `assets/orv/textures/gui/status_hud.png` und wird von
 `tools/GenerateStatusAtlas.java` erzeugt; `tools/PreviewStatusHud.java`
-rendert das HUD offline zur Kontrolle.
+rendert die Leiste offline zur Kontrolle.
 
 ## Guild UI & Networking
 

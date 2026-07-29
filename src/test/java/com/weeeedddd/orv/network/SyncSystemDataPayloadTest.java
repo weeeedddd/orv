@@ -29,6 +29,8 @@ class SyncSystemDataPayloadTest {
                 UUID.fromString("4f6f5bb8-f871-45ae-881c-efc155f9b514"),
                 12_345L,
                 678L,
+                100L,
+                "#BIHYUNG-412",
                 "Demon-like Judge of Fire"
         );
         FriendlyByteBuf buffer = new FriendlyByteBuf(
@@ -52,6 +54,8 @@ class SyncSystemDataPayloadTest {
                 UUID.randomUUID(),
                 1L,
                 2L,
+                100L,
+                "#BIHYUNG-412",
                 "深淵の黒炎竜"
         );
         FriendlyByteBuf buffer = new FriendlyByteBuf(
@@ -80,6 +84,8 @@ class SyncSystemDataPayloadTest {
                         playerId,
                         -1L,
                         0L,
+                        100L,
+                        "#BIHYUNG-412",
                         ""
                 )
         );
@@ -89,6 +95,8 @@ class SyncSystemDataPayloadTest {
                         playerId,
                         0L,
                         -1L,
+                        100L,
+                        "#BIHYUNG-412",
                         ""
                 )
         );
@@ -98,6 +106,8 @@ class SyncSystemDataPayloadTest {
                         playerId,
                         0L,
                         0L,
+                        100L,
+                        "#BIHYUNG-412",
                         "x".repeat(
                                 SyncSystemDataPayload
                                         .MAX_CONSTELLATION_NAME_LENGTH
@@ -111,6 +121,8 @@ class SyncSystemDataPayloadTest {
                         null,
                         0L,
                         0L,
+                        100L,
+                        "#BIHYUNG-412",
                         ""
                 )
         );
@@ -120,7 +132,63 @@ class SyncSystemDataPayloadTest {
                         playerId,
                         0L,
                         0L,
+                        100L,
+                        "#BIHYUNG-412",
                         null
+                )
+        );
+    }
+
+    @Test
+    void rejectsAMaxEnergyBelowOne() {
+        UUID playerId = UUID.randomUUID();
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new SyncSystemDataPayload(
+                        playerId,
+                        0L,
+                        0L,
+                        0L,
+                        "",
+                        ""
+                )
+        );
+    }
+
+    @Test
+    void rejectsAnOverlongChannelId() {
+        UUID playerId = UUID.randomUUID();
+        String tooLong = "x".repeat(
+                SyncSystemDataPayload.MAX_CHANNEL_ID_LENGTH + 1
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new SyncSystemDataPayload(
+                        playerId,
+                        0L,
+                        0L,
+                        100L,
+                        tooLong,
+                        ""
+                )
+        );
+    }
+
+    @Test
+    void rejectsANullChannelId() {
+        UUID playerId = UUID.randomUUID();
+
+        assertThrows(
+                NullPointerException.class,
+                () -> new SyncSystemDataPayload(
+                        playerId,
+                        0L,
+                        0L,
+                        100L,
+                        null,
+                        ""
                 )
         );
     }

@@ -30,6 +30,8 @@ class SystemDataClientCacheTest {
                 playerId,
                 500L,
                 80L,
+                100L,
+                "#BIHYUNG-412",
                 "Prisoner of the Golden Headband"
         );
 
@@ -54,6 +56,8 @@ class SystemDataClientCacheTest {
                 playerId,
                 10L,
                 20L,
+                100L,
+                "#BIHYUNG-412",
                 "Old"
         ));
 
@@ -61,6 +65,8 @@ class SystemDataClientCacheTest {
                 playerId,
                 30L,
                 40L,
+                100L,
+                "#BIHYUNG-412",
                 "New"
         ));
 
@@ -69,6 +75,8 @@ class SystemDataClientCacheTest {
                         playerId,
                         30L,
                         40L,
+                        100L,
+                        "#BIHYUNG-412",
                         "New"
                 ),
                 SystemDataClientCache.find(playerId).orElseThrow()
@@ -89,6 +97,8 @@ class SystemDataClientCacheTest {
                                 playerId,
                                 value,
                                 value * 2L,
+                                100L,
+                                "#BIHYUNG-412",
                                 "Constellation " + value
                         )
                 );
@@ -117,6 +127,8 @@ class SystemDataClientCacheTest {
                 playerId,
                 1L,
                 2L,
+                100L,
+                "#BIHYUNG-412",
                 ""
         ));
         Map<UUID, SystemDataSnapshot> snapshot =

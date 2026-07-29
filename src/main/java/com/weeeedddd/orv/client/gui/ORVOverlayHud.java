@@ -17,37 +17,53 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * The ORV system bar: an ornate strip across the top of the screen carrying
+ * the channel tag, coins, strength, energy and the current constellation.
+ *
+ * <p>Every value is read from the server-authoritative
+ * {@link SystemDataClientCache} snapshot, never from client-side state.
+ */
 @EventBusSubscriber(modid = OrvMod.MOD_ID, value = Dist.CLIENT)
 public final class ORVOverlayHud {
     private static final ResourceLocation LAYER_ID =
             ResourceLocation.fromNamespaceAndPath(OrvMod.MOD_ID, "status_hud");
 
-    private static final int PANEL_BACKGROUND = 0xCC0B0E14;
-    private static final int PANEL_UNDERLAY = 0x550B0E14;
-    private static final int ACCENT_CYAN = 0xFF00E5FF;
+    private static final int BAR_FILL = 0xEE0A0C12;
+    private static final int CHANNEL_TEXT = 0xFFE9EEF3;
     private static final int COINS_GOLD = 0xFFFFD700;
-    private static final int ENERGY_BLUE = 0xFF55FFFF;
     private static final int STRENGTH_RED = 0xFFFF5555;
+    private static final int ENERGY_BLUE = 0xFF55FFFF;
     private static final int CONSTELLATION_PURPLE = 0xFFAA55FF;
+    private static final int CONSTELLATION_VALUE = 0xFFC9A0FF;
+    private static final int PLATE_TEXT = 0xFFE8D8B0;
+    private static final int GLOW_CYAN = 0xFF00E5FF;
 
-    private static final int PANEL_X = 12;
-    private static final int PANEL_Y = 12;
-    private static final int MIN_PANEL_WIDTH = 248;
-    private static final int PANEL_HEIGHT = 110;
+    private static final int BAR_TOP = 8;
+    private static final int BAR_HEIGHT = 34;
+    private static final int BAR_MARGIN = 16;
+    private static final int BAR_MAX_WIDTH = 1120;
+    /** Smallest bar that still leaves room for both brackets and a gap. */
+    private static final int BAR_MIN_WIDTH = 260;
 
-    /** Offset of the parallax plane sitting behind the main panel. */
-    private static final int UNDERLAY_OFFSET = 4;
-    private static final int SEAL_INSET = 8;
-    private static final int HEADER_TOP = 6;
-    private static final int DIVIDER_Y = 34;
-    private static final int ROW_TOP = 42;
-    private static final int ROW_STEP = 15;
-    private static final int ICON_X = 12;
-    private static final int TEXT_X = 34;
-    private static final int MOTE_COUNT = 14;
+    private static final int SEGMENT_GAP = 16;
+    /** Columns are pushed this close together before any text is cut. */
+    private static final int SEGMENT_GAP_MIN = 8;
+    private static final int ICON_GAP = 4;
+    /** Floor for the constellation column before other columns give way. */
+    private static final int CONSTELLATION_MIN_WIDTH = 70;
 
+    private static final String PLATE_LABEL =
+            "[SYSTEM STATUS - INCORPORATED]";
+    private static final String NO_CHANNEL = "OFFLINE";
+    private static final String NO_CONSTELLATION = "[Searching Star Stream]";
+
+    private static final int MOTE_COUNT = 18;
     private static final int[] MOTE_COLORS = {
-            ACCENT_CYAN, COINS_GOLD, CONSTELLATION_PURPLE
+            GLOW_CYAN, COINS_GOLD, CONSTELLATION_PURPLE
     };
 
     private ORVOverlayHud() {
@@ -63,227 +79,364 @@ public final class ORVOverlayHud {
             return;
         }
 
+        Font font = minecraft.font;
         PlayerData data = ModAttachments.get(minecraft.player);
         SystemDataSnapshot systemData = SystemDataClientCache
                 .find(minecraft.player.getUUID())
                 .orElse(null);
-        Font font = minecraft.font;
 
-        String title = "[ SYSTEM STATUS ]";
-        String coinsText = "Coins: "
-                + (systemData == null ? 0L : systemData.coins());
-        String energyText = "Energy: "
-                + (systemData == null ? 0L : systemData.energy());
-        String strengthText = "Strength: Lv. " + data.strengthLevel();
-        boolean hasConstellation = systemData != null
-                && !systemData.constellationName().isBlank();
-        String constellationName = hasConstellation
-                ? systemData.constellationName()
-                : "None";
-        String constellationText = "Constellation: " + constellationName;
-
-        int rowsWidth = font.width(coinsText);
-        rowsWidth = Math.max(rowsWidth, font.width(energyText));
-        rowsWidth = Math.max(rowsWidth, font.width(strengthText));
-        rowsWidth = Math.max(rowsWidth, font.width(constellationText));
-
-        // The header must fit a seal on each side of the title.
-        int headerWidth = SEAL_INSET * 2 + StatusAtlas.SEAL_SIZE * 2
-                + 16 + font.width(title);
-        int panelWidth = Math.max(
-                MIN_PANEL_WIDTH,
-                // The right margin keeps long values clear of the frame's
-                // corner rosettes.
-                Math.max(headerWidth, TEXT_X + rowsWidth + 18)
+        int barWidth = Math.max(
+                BAR_MIN_WIDTH,
+                Math.min(BAR_MAX_WIDTH, guiGraphics.guiWidth() - BAR_MARGIN * 2)
         );
+        int barX = (guiGraphics.guiWidth() - barWidth) / 2;
 
-        renderPanel(guiGraphics, panelWidth);
-        renderHeader(guiGraphics, font, title, panelWidth);
-        renderRows(
+        renderBar(guiGraphics, barX, barWidth);
+        renderSegments(
                 guiGraphics,
                 font,
-                coinsText,
-                energyText,
-                strengthText,
-                constellationText,
-                hasConstellation
+                barX,
+                barWidth,
+                buildSegments(font, data, systemData)
         );
-        renderMotes(guiGraphics, panelWidth);
+        renderPlate(guiGraphics, font, barX, barWidth);
+        renderMotes(guiGraphics, barX, barWidth);
     }
 
-    /** Layered translucent planes with the filigree border on top. */
-    private static void renderPanel(
-            GuiGraphics guiGraphics,
-            int panelWidth
+    // ---------------------------------------------------------------
+    // Content
+    // ---------------------------------------------------------------
+
+    /**
+     * Builds the readout columns from the synced snapshot. Falls back to the
+     * local attachment only for strength, which rides its own payload.
+     */
+    private static List<Segment> buildSegments(
+            Font font,
+            PlayerData data,
+            SystemDataSnapshot systemData
     ) {
-        // Parallax plane peeking out at the bottom right.
+        long coins = systemData == null ? 0L : systemData.coins();
+        long energy = systemData == null ? 0L : systemData.energy();
+        long maxEnergy = systemData == null
+                ? PlayerData.DEFAULT_MAX_ENERGY
+                : systemData.maxEnergy();
+        String channelId = systemData == null || systemData.channelId().isBlank()
+                ? NO_CHANNEL
+                : systemData.channelId();
+        boolean hasConstellation = systemData != null
+                && !systemData.constellationName().isBlank();
+
+        List<Segment> segments = new ArrayList<>();
+        segments.add(new Segment(
+                Segment.NO_ICON,
+                false,
+                "[Kanal: " + channelId + "]",
+                null,
+                CHANNEL_TEXT,
+                CHANNEL_TEXT
+        ));
+        segments.add(new Segment(
+                StatusAtlas.ICON_COIN_U,
+                false,
+                "Coins: " + coins,
+                null,
+                COINS_GOLD,
+                COINS_GOLD
+        ));
+        segments.add(new Segment(
+                StatusAtlas.ICON_SWORD_U,
+                false,
+                "Strength: Lv. " + data.strengthLevel(),
+                null,
+                STRENGTH_RED,
+                STRENGTH_RED
+        ));
+        segments.add(new Segment(
+                StatusAtlas.ICON_ENERGY_U,
+                false,
+                "Energy: " + energy + " / " + maxEnergy,
+                null,
+                ENERGY_BLUE,
+                ENERGY_BLUE
+        ));
+        segments.add(new Segment(
+                Segment.STAR_ICON,
+                hasConstellation,
+                "Constellation:",
+                hasConstellation
+                        ? "[" + systemData.constellationName() + "]"
+                        : NO_CONSTELLATION,
+                CONSTELLATION_PURPLE,
+                CONSTELLATION_VALUE
+        ));
+        return segments;
+    }
+
+    /**
+     * Lays the columns out left to right. When they do not fit, the
+     * constellation column is squeezed first and the channel column second,
+     * since those two carry the longest free-form text.
+     */
+    private static void renderSegments(
+            GuiGraphics guiGraphics,
+            Font font,
+            int barX,
+            int barWidth,
+            List<Segment> segments
+    ) {
+        int available = barWidth - 2 * StatusAtlas.BRACKET_WIDTH - 8;
+        int gaps = segments.size() - 1;
+        int[] widths = new int[segments.size()];
+        int content = 0;
+        for (int index = 0; index < segments.size(); index++) {
+            widths[index] = segments.get(index).width(font);
+            content += widths[index];
+        }
+
+        // Tighten the gaps before sacrificing any characters.
+        int gap = SEGMENT_GAP;
+        if (content + gap * gaps > available && gaps > 0) {
+            gap = Math.max(
+                    SEGMENT_GAP_MIN,
+                    Math.min(SEGMENT_GAP, (available - content) / gaps)
+            );
+        }
+
+        int overflow = content + gap * gaps - available;
+        if (overflow > 0) {
+            int last = segments.size() - 1;
+            int shrink = Math.min(
+                    overflow,
+                    Math.max(0, widths[last] - CONSTELLATION_MIN_WIDTH)
+            );
+            widths[last] -= shrink;
+            overflow -= shrink;
+        }
+        if (overflow > 0) {
+            int shrink = Math.min(overflow, Math.max(0, widths[0] - 40));
+            widths[0] -= shrink;
+        }
+
+        int x = barX + StatusAtlas.BRACKET_WIDTH + 4;
+        for (int index = 0; index < segments.size(); index++) {
+            segments.get(index).render(guiGraphics, font, x, widths[index]);
+            x += widths[index] + gap;
+        }
+    }
+
+    /**
+     * One readout column: an optional icon plus one or two lines of text.
+     *
+     * @param iconU      atlas column of the icon, or a sentinel
+     * @param lit        selects the filled star when the icon is the sigil
+     * @param label      first line, always drawn
+     * @param value      optional second line, stacked under the label
+     * @param labelColor colour of the first line
+     * @param valueColor colour of the second line
+     */
+    private record Segment(
+            int iconU,
+            boolean lit,
+            String label,
+            String value,
+            int labelColor,
+            int valueColor
+    ) {
+        static final int NO_ICON = -1;
+        static final int STAR_ICON = -2;
+
+        int width(Font font) {
+            int text = Math.max(
+                    font.width(label),
+                    value == null ? 0 : font.width(value)
+            );
+            return text + (iconU == NO_ICON
+                    ? 0
+                    : StatusAtlas.ICON_SIZE + ICON_GAP);
+        }
+
+        void render(
+                GuiGraphics guiGraphics,
+                Font font,
+                int x,
+                int maxWidth
+        ) {
+            int textX = x;
+            if (iconU != NO_ICON) {
+                int iconY = BAR_TOP + (BAR_HEIGHT - StatusAtlas.ICON_SIZE) / 2;
+                if (iconU == STAR_ICON) {
+                    StatusAtlas.star(guiGraphics, x, iconY, lit);
+                } else {
+                    StatusAtlas.icon(guiGraphics, iconU, x, iconY);
+                }
+                textX += StatusAtlas.ICON_SIZE + ICON_GAP;
+            }
+
+            int textWidth = Math.max(0, maxWidth - (textX - x));
+            if (value == null) {
+                // Single line sits on the bar's centre line.
+                guiGraphics.drawString(
+                        font,
+                        fit(font, label, textWidth),
+                        textX,
+                        BAR_TOP + (BAR_HEIGHT - font.lineHeight) / 2,
+                        labelColor,
+                        true
+                );
+                return;
+            }
+
+            guiGraphics.drawString(
+                    font,
+                    fit(font, label, textWidth),
+                    textX,
+                    BAR_TOP + 6,
+                    labelColor,
+                    true
+            );
+            guiGraphics.drawString(
+                    font,
+                    fit(font, value, textWidth),
+                    textX,
+                    BAR_TOP + 18,
+                    valueColor,
+                    true
+            );
+        }
+    }
+
+    /** Truncates with an ellipsis so {@code text} fits {@code maxWidth}. */
+    private static String fit(Font font, String text, int maxWidth) {
+        if (font.width(text) <= maxWidth) {
+            return text;
+        }
+        String ellipsis = "…";
+        int budget = maxWidth - font.width(ellipsis);
+        if (budget <= 0) {
+            return "";
+        }
+        return font.plainSubstrByWidth(text, budget) + ellipsis;
+    }
+
+    // ---------------------------------------------------------------
+    // Chrome
+    // ---------------------------------------------------------------
+
+    private static void renderBar(
+            GuiGraphics guiGraphics,
+            int barX,
+            int barWidth
+    ) {
         guiGraphics.fill(
-                PANEL_X + UNDERLAY_OFFSET,
-                PANEL_Y + UNDERLAY_OFFSET,
-                PANEL_X + panelWidth + UNDERLAY_OFFSET,
-                PANEL_Y + PANEL_HEIGHT + UNDERLAY_OFFSET,
-                PANEL_UNDERLAY
-        );
-        guiGraphics.fill(
-                PANEL_X,
-                PANEL_Y,
-                PANEL_X + panelWidth,
-                PANEL_Y + PANEL_HEIGHT,
-                PANEL_BACKGROUND
+                barX + 3,
+                BAR_TOP + 3,
+                barX + barWidth - 3,
+                BAR_TOP + BAR_HEIGHT - 3,
+                BAR_FILL
         );
 
-        // Scenario-path labyrinth, kept faint so it never fights the text.
-        guiGraphics.setColor(1.0F, 1.0F, 1.0F, 0.18F);
+        // Scenario-path labyrinth, faint enough that it never fights text.
+        guiGraphics.setColor(1.0F, 1.0F, 1.0F, 0.14F);
         StatusAtlas.labyrinth(
                 guiGraphics,
-                PANEL_X + 6,
-                PANEL_Y + DIVIDER_Y + 4,
-                panelWidth - 12,
-                PANEL_HEIGHT - DIVIDER_Y - 10
+                barX + 4,
+                BAR_TOP + 4,
+                barWidth - 8,
+                BAR_HEIGHT - 8
         );
         guiGraphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
 
-        StatusAtlas.frame(
+        StatusAtlas.frame(guiGraphics, barX, BAR_TOP, barWidth, BAR_HEIGHT);
+
+        // Brackets overhang the bar vertically, so they anchor the ends.
+        int bracketY = BAR_TOP
+                + (BAR_HEIGHT - StatusAtlas.BRACKET_HEIGHT) / 2;
+        int rightBracketX = barX + barWidth - StatusAtlas.BRACKET_WIDTH;
+        StatusAtlas.bracket(guiGraphics, barX, bracketY, false);
+        StatusAtlas.bracket(guiGraphics, rightBracketX, bracketY, true);
+
+        int rosetteY = bracketY
+                + (StatusAtlas.BRACKET_HEIGHT - StatusAtlas.ROSETTE_SIZE) / 2;
+        int rosetteInset =
+                (StatusAtlas.BRACKET_WIDTH - StatusAtlas.ROSETTE_SIZE) / 2;
+        StatusAtlas.seal(guiGraphics, barX + rosetteInset, rosetteY);
+        StatusAtlas.gem(
                 guiGraphics,
-                PANEL_X,
-                PANEL_Y,
-                panelWidth,
-                PANEL_HEIGHT
+                rightBracketX + rosetteInset,
+                rosetteY
         );
     }
 
-    private static void renderHeader(
+    /** The title plate hanging under the bar, with the channel master. */
+    private static void renderPlate(
             GuiGraphics guiGraphics,
             Font font,
-            String title,
-            int panelWidth
+            int barX,
+            int barWidth
     ) {
-        int sealY = PANEL_Y + HEADER_TOP;
-        StatusAtlas.seal(guiGraphics, PANEL_X + SEAL_INSET, sealY);
-        StatusAtlas.seal(
-                guiGraphics,
-                PANEL_X + panelWidth - SEAL_INSET - StatusAtlas.SEAL_SIZE,
-                sealY
-        );
+        int plateWidth = font.width(PLATE_LABEL) + 26;
+        int plateHeight = 18;
+        int plateX = barX + (barWidth - plateWidth) / 2;
+        int plateY = BAR_TOP + BAR_HEIGHT - 4;
 
+        StatusAtlas.plate(
+                guiGraphics,
+                plateX,
+                plateY,
+                plateWidth,
+                plateHeight
+        );
         guiGraphics.drawString(
                 font,
-                title,
-                PANEL_X + (panelWidth - font.width(title)) / 2,
-                sealY + (StatusAtlas.SEAL_SIZE - font.lineHeight) / 2,
-                ACCENT_CYAN,
+                PLATE_LABEL,
+                plateX + (plateWidth - font.width(PLATE_LABEL)) / 2,
+                plateY + (plateHeight - font.lineHeight) / 2 + 1,
+                PLATE_TEXT,
                 false
         );
 
-        int dividerY = PANEL_Y + DIVIDER_Y;
-        guiGraphics.fill(
-                PANEL_X + 10,
-                dividerY,
-                PANEL_X + panelWidth - 10,
-                dividerY + 1,
-                ACCENT_CYAN
-        );
-        // Horn-and-eye motifs mark the junctions at each end of the rule.
-        StatusAtlas.horn(guiGraphics, PANEL_X + 3, dividerY - 4);
-        StatusAtlas.horn(
+        StatusAtlas.dokkaebi(
                 guiGraphics,
-                PANEL_X + panelWidth - 3 - StatusAtlas.HORN_SIZE,
-                dividerY - 4
+                barX + (barWidth - StatusAtlas.DOKKAEBI_SIZE) / 2,
+                plateY + plateHeight - 3
         );
     }
 
-    private static void renderRows(
-            GuiGraphics guiGraphics,
-            Font font,
-            String coinsText,
-            String energyText,
-            String strengthText,
-            String constellationText,
-            boolean hasConstellation
-    ) {
-        row(guiGraphics, font, 0, coinsText, COINS_GOLD,
-                StatusAtlas.ICON_COIN_U);
-        row(guiGraphics, font, 1, energyText, ENERGY_BLUE,
-                StatusAtlas.ICON_ENERGY_U);
-        row(guiGraphics, font, 2, strengthText, STRENGTH_RED,
-                StatusAtlas.ICON_SWORD_U);
-
-        int starY = rowY(3) - 4;
-        StatusAtlas.star(
-                guiGraphics,
-                PANEL_X + ICON_X,
-                starY,
-                hasConstellation
-        );
-        guiGraphics.drawString(
-                font,
-                constellationText,
-                PANEL_X + TEXT_X,
-                rowY(3),
-                CONSTELLATION_PURPLE,
-                true
-        );
-    }
-
-    private static void row(
-            GuiGraphics guiGraphics,
-            Font font,
-            int index,
-            String text,
-            int color,
-            int iconU
-    ) {
-        int y = rowY(index);
-        // Icons are 16px tall against 9px text, so lift them to share a
-        // centre line with the label.
-        StatusAtlas.icon(guiGraphics, iconU, PANEL_X + ICON_X, y - 4);
-        guiGraphics.drawString(
-                font,
-                text,
-                PANEL_X + TEXT_X,
-                y,
-                color,
-                true
-        );
-    }
-
-    private static int rowY(int index) {
-        return PANEL_Y + ROW_TOP + index * ROW_STEP;
-    }
-
-    /** Cyan, gold and violet motes drifting along the panel edges. */
+    /** Cyan, gold and violet motes drifting along the bar's long edges. */
     private static void renderMotes(
             GuiGraphics guiGraphics,
-            int panelWidth
+            int barX,
+            int barWidth
     ) {
         long millis = Util.getMillis();
 
         for (int index = 0; index < MOTE_COUNT; index++) {
-            double speed = 0.07 + (index % 4) * 0.015;
-            double phase = ((millis / 1000.0) * speed + index * 0.41) % 1.0;
+            double speed = 0.05 + (index % 4) * 0.012;
+            double phase = ((millis / 1000.0) * speed + index * 0.37) % 1.0;
 
-            int alpha = (int) (Math.sin(phase * Math.PI) * 120.0);
+            int alpha = (int) (Math.sin(phase * Math.PI) * 115.0);
             if (alpha <= 6) {
                 continue;
             }
 
-            boolean rightSide = index % 2 == 1;
-            double wobble = Math.sin(millis / 900.0 + index * 1.7) * 3.0;
-            int x = rightSide
-                    ? PANEL_X + panelWidth - 5 + (int) wobble
-                    : PANEL_X + 4 + (int) wobble;
-            // Motes rise along the panel edge over their lifetime.
-            int y = PANEL_Y + PANEL_HEIGHT - 6
-                    - (int) (phase * (PANEL_HEIGHT - 12));
+            // Motes travel along the bar rather than across it.
+            int travel = (int) (phase * (barWidth - 2 * StatusAtlas.BRACKET_WIDTH));
+            int x = barX + StatusAtlas.BRACKET_WIDTH + travel;
+            boolean lower = index % 2 == 1;
+            double wobble = Math.sin(millis / 950.0 + index * 1.7) * 2.5;
+            int y = (lower ? BAR_TOP + BAR_HEIGHT - 4 : BAR_TOP + 2)
+                    + (int) wobble;
 
             int size = 1 + (index % 2);
-            int color = MOTE_COLORS[index % MOTE_COLORS.length];
             guiGraphics.fill(
                     x,
                     y,
                     x + size,
                     y + size,
-                    (alpha << 24) | (color & 0x00FFFFFF)
+                    (alpha << 24)
+                            | (MOTE_COLORS[index % MOTE_COLORS.length]
+                                    & 0x00FFFFFF)
             );
         }
     }

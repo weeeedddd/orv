@@ -9,7 +9,7 @@ import java.io.IOException;
  *
  * Deterministic: rerunning reproduces the same bytes.
  *
- * Atlas layout (128x128, mirrored by StatusAtlas):
+ * Atlas layout (256x128, mirrored by StatusAtlas):
  *   FRAME      (  0,  0)  48x48  9-slice, corner 16, glowing filigree
  *   SEAL       ( 48,  0)  24x24  gear + eye alchemy seal
  *   COIN       ( 72,  0)  16x16  dokkaebi-stamped gold coin
@@ -18,11 +18,17 @@ import java.io.IOException;
  *   STAR_OFF   ( 72, 16)  16x16  hollow star sigil
  *   STAR_ON    ( 88, 16)  16x16  lit star sigil
  *   HORN       (104, 16)   8x8   dokkaebi horn + eye motif
+ *   GEM        ( 48, 24)  24x24  faceted gem rosette (right bracket)
  *   LABYRINTH  (  0, 48)  64x32  scenario-path glow, tileable in x
+ *   BRACKET_L  (128,  0)  40x48  ornate left end bracket
+ *   BRACKET_R  (168,  0)  40x48  ornate right end bracket
+ *   PLATE      (208,  0)  24x24  9-slice, corner 8, hanging title plate
+ *   DOKKAEBI   (232,  0)  16x16  horned channel-master head
  */
 public final class GenerateStatusAtlas {
 
-    private static final int SIZE = 128;
+    private static final int WIDTH = 256;
+    private static final int HEIGHT = 128;
 
     private static final int CYAN = 0xFF00E5FF;
     private static final int CYAN_SOFT = 0xFF55FFFF;
@@ -31,6 +37,7 @@ public final class GenerateStatusAtlas {
     private static final int GOLD_DARK = 0xFFA8811F;
     private static final int COPPER = 0xFFB87333;
     private static final int COPPER_LIGHT = 0xFFD9975A;
+    private static final int COPPER_DARK = 0xFF6E4119;
     private static final int PURPLE = 0xFFAA55FF;
     private static final int PURPLE_LIGHT = 0xFFD9B0FF;
     private static final int RED = 0xFFFF5555;
@@ -38,7 +45,7 @@ public final class GenerateStatusAtlas {
     private static final int OUTLINE = 0xFF12161F;
 
     private static final BufferedImage IMG =
-            new BufferedImage(SIZE, SIZE, BufferedImage.TYPE_INT_ARGB);
+            new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_ARGB);
 
     public static void main(String[] args) throws IOException {
         frame(0, 0);
@@ -49,7 +56,12 @@ public final class GenerateStatusAtlas {
         star(72, 16, false);
         star(88, 16, true);
         icon(104, 16, HORN);
+        gem(48, 24);
         labyrinth(0, 48, 64, 32);
+        bracket(128, 0, false);
+        bracket(168, 0, true);
+        plate(208, 0);
+        icon(232, 0, DOKKAEBI);
 
         File out = new File(args.length > 0 ? args[0]
                 : "src/main/resources/assets/orv/textures/gui/status_hud.png");
@@ -288,6 +300,131 @@ public final class GenerateStatusAtlas {
         }
     }
 
+    /** 24x24 faceted gem rosette seated in a bronze collar. */
+    private static void gem(int ox, int oy) {
+        int s = 24;
+        double c = (s - 1) / 2.0;
+
+        ring(ox + (int) c, oy + (int) c, 11.4, 9.0, COPPER);
+        ring(ox + (int) c, oy + (int) c, 10.4, 9.6, COPPER_LIGHT);
+
+        for (int y = 0; y < s; y++) {
+            for (int x = 0; x < s; x++) {
+                double dx = x - c;
+                double dy = y - c;
+                double r = Math.hypot(dx, dy);
+                if (r > 8.6) {
+                    continue;
+                }
+                // Facets: brighten toward the upper left, darken opposite.
+                double facet = (-dx - dy) / 12.0;
+                double t = clamp01(0.5 + facet * 0.55 - r / 22.0);
+                px(ox + x, oy + y, blend(0xFF4B1E7A, PURPLE_LIGHT, t));
+            }
+        }
+        // Specular glint.
+        px(ox + 8, oy + 7, 0xFFFFFFFF);
+        px(ox + 9, oy + 7, 0xFFFFFFFF);
+        px(ox + 8, oy + 8, withAlpha(0xFFFFFFFF, 190));
+    }
+
+    /**
+     * 40x48 ornate end bracket: a bevelled bronze plate with a recessed
+     * socket for the rosette and a scrolled crown. {@code mirrored} flips
+     * the scrollwork for the right-hand end.
+     */
+    private static void bracket(int ox, int oy, boolean mirrored) {
+        int w = 40;
+        int h = 48;
+
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int sx = mirrored ? w - 1 - x : x;
+
+                // Plate silhouette: full width in the body, tapered at the
+                // crown and foot so the piece reads as cast metal.
+                int inset = y < 6 ? 6 - y : (y > h - 7 ? y - (h - 7) : 0);
+                if (sx < inset || sx >= w - inset) {
+                    continue;
+                }
+
+                int dx = Math.min(sx - inset, w - 1 - inset - sx);
+                int dy = Math.min(y, h - 1 - y);
+                int d = Math.min(dx, dy);
+
+                int color;
+                if (d == 0) {
+                    color = OUTLINE;
+                } else if (d == 1) {
+                    color = (y < h / 2) ? COPPER_LIGHT : COPPER_DARK;
+                } else if (d <= 3) {
+                    color = blend(COPPER, COPPER_LIGHT,
+                            (y < h / 2) ? 0.55 : 0.15);
+                } else {
+                    color = blend(COPPER_DARK, COPPER, 0.45);
+                }
+                px(ox + x, oy + y, color);
+            }
+        }
+
+        // Recessed socket the rosette sits in.
+        int cx = ox + w / 2;
+        int cy = oy + h / 2;
+        ring(cx, cy, 13.2, 12.0, OUTLINE);
+        for (int y = -12; y <= 12; y++) {
+            for (int x = -12; x <= 12; x++) {
+                if (Math.hypot(x, y) <= 12.0) {
+                    px(cx + x, cy + y, withAlpha(OUTLINE, 225));
+                }
+            }
+        }
+
+        // Scrolled crown and foot: quarter arcs curling outward.
+        int scrollX = mirrored ? ox + w - 9 : ox + 8;
+        scroll(scrollX, oy + 6, mirrored);
+        scroll(scrollX, oy + h - 7, mirrored);
+    }
+
+    /** Small curled scroll used on the bracket crown and foot. */
+    private static void scroll(int cx, int cy, boolean mirrored) {
+        int dir = mirrored ? -1 : 1;
+        for (int i = 0; i < 3; i++) {
+            double radius = 2.0 + i * 1.6;
+            for (double a = -Math.PI * 0.15; a < Math.PI * 1.05; a += 0.10) {
+                int x = (int) Math.round(cx + Math.cos(a) * radius * dir);
+                int y = (int) Math.round(cy - Math.sin(a) * radius);
+                px(x, y, i == 0 ? GOLD_LIGHT : (i == 1 ? GOLD : COPPER_LIGHT));
+            }
+        }
+    }
+
+    /** 24x24 nine-slice plate that hangs below the bar. */
+    private static void plate(int ox, int oy) {
+        int w = 24;
+        int h = 24;
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int dx = Math.min(x, w - 1 - x);
+                int dy = Math.min(y, h - 1 - y);
+                int d = Math.min(dx, dy);
+
+                int color;
+                if (d == 0) {
+                    color = OUTLINE;
+                } else if (d == 1) {
+                    color = (y < h / 2) ? COPPER_LIGHT : COPPER_DARK;
+                } else if (d == 2) {
+                    color = COPPER;
+                } else if (d == 3) {
+                    color = blend(COPPER_DARK, OUTLINE, 0.5);
+                } else {
+                    color = withAlpha(0xFF0A0C12, 236);
+                }
+                px(ox + x, oy + y, color);
+            }
+        }
+    }
+
     // ---------------------------------------------------------------
     // Pixel maps
     // ---------------------------------------------------------------
@@ -360,6 +497,25 @@ public final class GenerateStatusAtlas {
             "...oo..."
     };
 
+    private static final String[] DOKKAEBI = {
+            "................",
+            ".C............C.",
+            ".CC..........CC.",
+            "..CC........CC..",
+            "..oCkkkkkkkkCo..",
+            "..okkkkkkkkkko..",
+            ".okkyykkkkyykko.",
+            ".okkyykkkkyykko.",
+            ".okkkkkkkkkkkko.",
+            ".okkkkkkkkkkkko.",
+            ".okkkRRRRRRkkko.",
+            "..okkkkkkkkkko..",
+            "...oookkkkooo...",
+            "......oooo......",
+            "................",
+            "................"
+    };
+
     private static void icon(int ox, int oy, String[] rows) {
         for (int y = 0; y < rows.length; y++) {
             String row = rows[y];
@@ -374,6 +530,7 @@ public final class GenerateStatusAtlas {
                     case 'p' -> PURPLE;
                     case 'C' -> COPPER_LIGHT;
                     case 'y' -> CYAN_SOFT;
+                    case 'k' -> 0xFF1B1F2B;
                     default -> 0;
                 };
                 if (color != 0) {
@@ -406,13 +563,31 @@ public final class GenerateStatusAtlas {
         }
     }
 
+    /** Linear blend; {@code t} of 0 yields {@code a}, 1 yields {@code b}. */
+    private static int blend(int a, int b, double t) {
+        double f = clamp01(t);
+        int alpha = (int) Math.round(comp(a, 24) + (comp(b, 24) - comp(a, 24)) * f);
+        int red = (int) Math.round(comp(a, 16) + (comp(b, 16) - comp(a, 16)) * f);
+        int green = (int) Math.round(comp(a, 8) + (comp(b, 8) - comp(a, 8)) * f);
+        int blue = (int) Math.round(comp(a, 0) + (comp(b, 0) - comp(a, 0)) * f);
+        return alpha << 24 | red << 16 | green << 8 | blue;
+    }
+
+    private static int comp(int argb, int shift) {
+        return (argb >>> shift) & 0xFF;
+    }
+
+    private static double clamp01(double v) {
+        return v < 0 ? 0 : Math.min(v, 1);
+    }
+
     private static int withAlpha(int argb, int alpha) {
         return (alpha << 24) | (argb & 0x00FFFFFF);
     }
 
     /** Source-over composite so glows layer instead of replacing. */
     private static void px(int x, int y, int argb) {
-        if (x < 0 || y < 0 || x >= SIZE || y >= SIZE) {
+        if (x < 0 || y < 0 || x >= WIDTH || y >= HEIGHT) {
             return;
         }
         int src = argb;

@@ -13,7 +13,8 @@ public final class GuiBlit {
     public static void blit(
             GuiGraphics graphics,
             ResourceLocation texture,
-            int atlasSize,
+            int atlasWidth,
+            int atlasHeight,
             int x,
             int y,
             int width,
@@ -36,8 +37,8 @@ public final class GuiBlit {
                 (float) v,
                 sourceWidth,
                 sourceHeight,
-                atlasSize,
-                atlasSize
+                atlasWidth,
+                atlasHeight
         );
     }
 
@@ -48,7 +49,8 @@ public final class GuiBlit {
     public static void nineSlice(
             GuiGraphics graphics,
             ResourceLocation texture,
-            int atlasSize,
+            int atlasWidth,
+            int atlasHeight,
             int u,
             int v,
             int size,
@@ -67,29 +69,29 @@ public final class GuiBlit {
         int farX = x + width - corner;
         int farY = y + height - corner;
 
-        blit(graphics, texture, atlasSize, x, y, corner, corner,
+        blit(graphics, texture, atlasWidth, atlasHeight, x, y, corner, corner,
                 u, v, corner, corner);
-        blit(graphics, texture, atlasSize, farX, y, corner, corner,
+        blit(graphics, texture, atlasWidth, atlasHeight, farX, y, corner, corner,
                 farU, v, corner, corner);
-        blit(graphics, texture, atlasSize, x, farY, corner, corner,
+        blit(graphics, texture, atlasWidth, atlasHeight, x, farY, corner, corner,
                 u, farV, corner, corner);
-        blit(graphics, texture, atlasSize, farX, farY, corner, corner,
+        blit(graphics, texture, atlasWidth, atlasHeight, farX, farY, corner, corner,
                 farU, farV, corner, corner);
 
         if (innerWidth > 0) {
-            blit(graphics, texture, atlasSize, x + corner, y,
+            blit(graphics, texture, atlasWidth, atlasHeight, x + corner, y,
                     innerWidth, corner, u + corner, v, band, corner);
-            blit(graphics, texture, atlasSize, x + corner, farY,
+            blit(graphics, texture, atlasWidth, atlasHeight, x + corner, farY,
                     innerWidth, corner, u + corner, farV, band, corner);
         }
         if (innerHeight > 0) {
-            blit(graphics, texture, atlasSize, x, y + corner,
+            blit(graphics, texture, atlasWidth, atlasHeight, x, y + corner,
                     corner, innerHeight, u, v + corner, corner, band);
-            blit(graphics, texture, atlasSize, farX, y + corner,
+            blit(graphics, texture, atlasWidth, atlasHeight, farX, y + corner,
                     corner, innerHeight, farU, v + corner, corner, band);
         }
         if (innerWidth > 0 && innerHeight > 0) {
-            blit(graphics, texture, atlasSize, x + corner, y + corner,
+            blit(graphics, texture, atlasWidth, atlasHeight, x + corner, y + corner,
                     innerWidth, innerHeight,
                     u + corner, v + corner, band, band);
         }
@@ -103,7 +105,8 @@ public final class GuiBlit {
     public static void tile(
             GuiGraphics graphics,
             ResourceLocation texture,
-            int atlasSize,
+            int atlasWidth,
+            int atlasHeight,
             int u,
             int v,
             int tileWidth,
@@ -117,7 +120,7 @@ public final class GuiBlit {
             int drawHeight = Math.min(tileHeight, height - offsetY);
             for (int offsetX = 0; offsetX < width; offsetX += tileWidth) {
                 int drawWidth = Math.min(tileWidth, width - offsetX);
-                blit(graphics, texture, atlasSize,
+                blit(graphics, texture, atlasWidth, atlasHeight,
                         x + offsetX, y + offsetY, drawWidth, drawHeight,
                         u, v, drawWidth, drawHeight);
             }

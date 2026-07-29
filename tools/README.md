@@ -31,11 +31,14 @@ java tools/GenerateStatusAtlas.java
 ```
 
 Writes `src/main/resources/assets/orv/textures/gui/status_hud.png`
-(128x128), also deterministically. It holds the glowing filigree frame,
-the gear-and-eye alchemy seal, the coin, energy-vortex and sword-rune
-icons, the lit and unlit star sigils, the dokkaebi horn motif and the
-scenario-path labyrinth. The region layout is mirrored by
-`client/gui/StatusAtlas.java`.
+(256x128), also deterministically. It holds the glowing filigree frame,
+the ornate end brackets, the gear-and-eye seal and the faceted gem, the
+coin, energy-vortex and sword-rune icons, the lit and unlit star sigils,
+the hanging plate, the channel-master head and the scenario-path
+labyrinth. The region layout is mirrored by `client/gui/StatusAtlas.java`.
+
+Nine-sliced regions must be square: `GuiBlit.nineSlice` takes a single
+`size`, so a non-square source would read into the neighbouring region.
 
 ## `PreviewGuildScreen.java`
 
