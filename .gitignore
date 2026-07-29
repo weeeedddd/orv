@@ -1,0 +1,16 @@
+.gradle/
+build/
+out/
+run/
+logs/
+*.log
+.idea/
+*.iws
+*.iml
+*.ipr
+.run/
+.vscode/
+bin/
+repo/
+**/src/generated/**/.cache/
+.mdk-reference/

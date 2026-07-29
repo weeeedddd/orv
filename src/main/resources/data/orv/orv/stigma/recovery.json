@@ -1,0 +1,6 @@
+{
+  "name": "Recovery",
+  "mana_cost": 20,
+  "cooldown_ticks": 100,
+  "effect_logic": "orv:heal"
+}

@@ -1,0 +1,9 @@
+{
+  "key.categories.orv": "ORV",
+  "key.orv.open_guild": "Open Guild Menu",
+  "commands.orv.coins.add.success": "Added %s coins to %s player(s).",
+  "commands.orv.coins.remove.success": "Removed %s coins from %s player(s).",
+  "commands.orv.coins.set.success": "Set the balance of %2$s player(s) to %1$s coins.",
+  "commands.orv.coins.insufficient": "%s does not have the required %s coins (balance: %s).",
+  "commands.orv.coins.overflow": "The coin balance for %s would overflow."
+}
