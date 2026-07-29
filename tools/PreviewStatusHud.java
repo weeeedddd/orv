@@ -59,14 +59,15 @@ public final class PreviewStatusHud {
     private static final int STAR_OFF_U = 72;
     private static final int STAR_ON_U = 88;
     private static final int STAR_V = 16;
-    private static final int BRACKET_W = 40;
-    private static final int BRACKET_H = 48;
+    private static final int BRACKET_W = 44;
+    private static final int BRACKET_H = 56;
     private static final int BRACKET_L_U = 128;
-    private static final int BRACKET_R_U = 168;
-    private static final int PLATE_U = 208;
+    private static final int BRACKET_R_U = 172;
+    private static final int PLATE_U = 216;
     private static final int PLATE_SIZE = 24;
     private static final int PLATE_CORNER = 8;
-    private static final int DOKKAEBI_U = 232;
+    private static final int DOKKAEBI_U = 216;
+    private static final int DOKKAEBI_V = 24;
     private static final int DOKKAEBI_SIZE = 16;
     private static final int LAB_V = 48;
     private static final int LAB_W = 64;
@@ -85,9 +86,7 @@ public final class PreviewStatusHud {
         atlas = ImageIO.read(new File(
                 "src/main/resources/assets/orv/textures/gui/status_hud.png"));
 
-        render("bar-active", 12L, 30L, 100L, 1, "#BIHYUNG-412", "");
-        render("bar-bound", 24680L, 340L, 400L, 42, "#SECRETIVE-001",
-                "Demon-like Judge of Fire");
+        render("bar-mock", 12L, 30L, 100L, 1, "#BIHYUNG-412", "");
 
         // Narrow screen: verifies the gap-tightening and truncation path.
         SCREEN_W = 640;
@@ -197,7 +196,7 @@ public final class PreviewStatusHud {
         draw(plateLabel, plateX + (plateWidth - plateLabel.length() * ADVANCE) / 2,
                 plateY + (plateHeight - LINE_HEIGHT) / 2 + 1, PLATE_TEXT, false);
         blit(barX + (barWidth - DOKKAEBI_SIZE) / 2, plateY + plateHeight - 3,
-                DOKKAEBI_SIZE, DOKKAEBI_SIZE, DOKKAEBI_U, 0,
+                DOKKAEBI_SIZE, DOKKAEBI_SIZE, DOKKAEBI_U, DOKKAEBI_V,
                 DOKKAEBI_SIZE, DOKKAEBI_SIZE, 1.0);
 
         // --- motes, sampled at a fixed instant ---

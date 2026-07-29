@@ -54,14 +54,13 @@ JUnit-Tests abgedeckt.
 
 Der Server sendet `SyncSystemDataPayload` unter der Paket-ID
 `orv:system_sync`. Der Snapshot enthält Spieler-UUID, Coins, Energy,
-Energy-Maximum, Kanal-Kennung und den Konstellationsnamen. Auf dem Client veröffentlicht der Handler die Daten nach
-`enqueueWork` atomar in einem thread-sicheren Cache; das HUD liest keine
-serverseitigen Attachments als eigene Datenquelle.
+Energy-Maximum, Kanal-Kennung und den Konstellationsnamen. Auf dem Client
+veröffentlicht der Handler die Daten nach `enqueueWork` atomar in einem
+thread-sicheren Cache.
 
 Ein vollständiger Snapshot wird bei Login, Respawn und Dimensionswechsel
 gesendet. Coin- und Energy-Änderungen lösen ebenfalls eine Synchronisierung
-aus. Beim Logout wird der Client-Cache geleert. Bis das Sponsor-System aus
-Phase 4 eine Konstellation setzt, zeigt das HUD `None`.
+aus. Beim Logout wird der Client-Cache geleert.
 
 ## Sponsor- und Stigma-System
 
@@ -155,13 +154,19 @@ Die Leiste zeigt fünf Spalten: Kanal, Coins, Strength, Energy (als
 Sternzeichen leuchtet erst, wenn eine Konstellation gesetzt ist, sonst
 steht dort `[Searching Star Stream]`.
 
-Alle Werte stammen aus dem serverautoritativen Snapshot
-(`SystemDataClientCache`), nicht aus Client-Zustand. `maxEnergy` und
-`channelId` liegen im `orv:player_data`-Attachment und werden über
-`SyncSystemDataPayload` mitgesendet; beide Codec-Felder sind optional,
-damit Welten von vor ihrer Einführung weiter laden. Serverseitig gesetzt
-werden sie über `ModAttachments.setMaxEnergy(...)` und
-`ModAttachments.setChannelId(...)`.
+**Die Anzeigewerte sind derzeit fest verdrahtet** und entsprechen 1:1 dem
+freigegebenen Entwurf (`MOCK_*`-Konstanten in `ORVOverlayHud`). Die Leiste
+zeigt also bei jedem Spieler dieselben Zahlen, unabhängig vom echten
+Spielstand.
+
+Die Server-Anbindung liegt vollständig bereit: Coins, Energy, Energy-Maximum,
+Kanal-Kennung und Konstellation kommen über `SyncSystemDataPayload` im
+`SystemDataClientCache` an. `maxEnergy` und `channelId` liegen im
+`orv:player_data`-Attachment (beide Codec-Felder optional, damit ältere
+Welten weiter laden) und werden serverseitig über
+`ModAttachments.setMaxEnergy(...)` bzw. `setChannelId(...)` gesetzt. Um die
+Leiste auf Live-Daten umzustellen, genügt es, die `MOCK_*`-Konstanten in
+`buildSegments()` durch Snapshot-Zugriffe zu ersetzen.
 
 Passt der Inhalt nicht in die Leiste, werden zuerst die Spaltenabstände
 gestaucht, danach die Konstellation und zuletzt der Kanal mit Ellipse

@@ -1,10 +1,6 @@
 package com.weeeedddd.orv.client.gui;
 
 import com.weeeedddd.orv.OrvMod;
-import com.weeeedddd.orv.client.system.SystemDataClientCache;
-import com.weeeedddd.orv.client.system.SystemDataSnapshot;
-import com.weeeedddd.orv.data.ModAttachments;
-import com.weeeedddd.orv.data.PlayerData;
 import net.minecraft.Util;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -24,8 +20,12 @@ import java.util.List;
  * The ORV system bar: an ornate strip across the top of the screen carrying
  * the channel tag, coins, strength, energy and the current constellation.
  *
- * <p>Every value is read from the server-authoritative
- * {@link SystemDataClientCache} snapshot, never from client-side state.
+ * <p>The readouts are fixed to the values from the approved design mock —
+ * see {@code MOCK_*} below. The server-side data is already in place
+ * ({@code SystemDataClientCache}, plus {@code maxEnergy} and
+ * {@code channelId} on the {@code orv:player_data} attachment), so wiring
+ * the bar back to live values means replacing the constants in
+ * {@link #buildSegments()} with snapshot reads.
  */
 @EventBusSubscriber(modid = OrvMod.MOD_ID, value = Dist.CLIENT)
 public final class ORVOverlayHud {
@@ -58,8 +58,16 @@ public final class ORVOverlayHud {
 
     private static final String PLATE_LABEL =
             "[SYSTEM STATUS - INCORPORATED]";
-    private static final String NO_CHANNEL = "OFFLINE";
-    private static final String NO_CONSTELLATION = "[Searching Star Stream]";
+
+    // Fixed readouts, taken verbatim from the design mock.
+    private static final String MOCK_CHANNEL = "#BIHYUNG-412";
+    private static final long MOCK_COINS = 12L;
+    private static final int MOCK_STRENGTH = 1;
+    private static final long MOCK_ENERGY = 30L;
+    private static final long MOCK_MAX_ENERGY = 100L;
+    private static final String MOCK_CONSTELLATION = "[Searching Star Stream]";
+    /** The mock shows the sigil unlit, matching the searching state. */
+    private static final boolean MOCK_CONSTELLATION_BOUND = false;
 
     private static final int MOTE_COUNT = 18;
     private static final int[] MOTE_COLORS = {
@@ -80,10 +88,6 @@ public final class ORVOverlayHud {
         }
 
         Font font = minecraft.font;
-        PlayerData data = ModAttachments.get(minecraft.player);
-        SystemDataSnapshot systemData = SystemDataClientCache
-                .find(minecraft.player.getUUID())
-                .orElse(null);
 
         int barWidth = Math.max(
                 BAR_MIN_WIDTH,
@@ -97,7 +101,7 @@ public final class ORVOverlayHud {
                 font,
                 barX,
                 barWidth,
-                buildSegments(font, data, systemData)
+                buildSegments()
         );
         renderPlate(guiGraphics, font, barX, barWidth);
         renderMotes(guiGraphics, barX, barWidth);
@@ -107,31 +111,13 @@ public final class ORVOverlayHud {
     // Content
     // ---------------------------------------------------------------
 
-    /**
-     * Builds the readout columns from the synced snapshot. Falls back to the
-     * local attachment only for strength, which rides its own payload.
-     */
-    private static List<Segment> buildSegments(
-            Font font,
-            PlayerData data,
-            SystemDataSnapshot systemData
-    ) {
-        long coins = systemData == null ? 0L : systemData.coins();
-        long energy = systemData == null ? 0L : systemData.energy();
-        long maxEnergy = systemData == null
-                ? PlayerData.DEFAULT_MAX_ENERGY
-                : systemData.maxEnergy();
-        String channelId = systemData == null || systemData.channelId().isBlank()
-                ? NO_CHANNEL
-                : systemData.channelId();
-        boolean hasConstellation = systemData != null
-                && !systemData.constellationName().isBlank();
-
+    /** Builds the five readout columns from the fixed mock values. */
+    private static List<Segment> buildSegments() {
         List<Segment> segments = new ArrayList<>();
         segments.add(new Segment(
                 Segment.NO_ICON,
                 false,
-                "[Kanal: " + channelId + "]",
+                "[Kanal: " + MOCK_CHANNEL + "]",
                 null,
                 CHANNEL_TEXT,
                 CHANNEL_TEXT
@@ -139,7 +125,7 @@ public final class ORVOverlayHud {
         segments.add(new Segment(
                 StatusAtlas.ICON_COIN_U,
                 false,
-                "Coins: " + coins,
+                "Coins: " + MOCK_COINS,
                 null,
                 COINS_GOLD,
                 COINS_GOLD
@@ -147,7 +133,7 @@ public final class ORVOverlayHud {
         segments.add(new Segment(
                 StatusAtlas.ICON_SWORD_U,
                 false,
-                "Strength: Lv. " + data.strengthLevel(),
+                "Strength: Lv. " + MOCK_STRENGTH,
                 null,
                 STRENGTH_RED,
                 STRENGTH_RED
@@ -155,18 +141,16 @@ public final class ORVOverlayHud {
         segments.add(new Segment(
                 StatusAtlas.ICON_ENERGY_U,
                 false,
-                "Energy: " + energy + " / " + maxEnergy,
+                "Energy: " + MOCK_ENERGY + " / " + MOCK_MAX_ENERGY,
                 null,
                 ENERGY_BLUE,
                 ENERGY_BLUE
         ));
         segments.add(new Segment(
                 Segment.STAR_ICON,
-                hasConstellation,
+                MOCK_CONSTELLATION_BOUND,
                 "Constellation:",
-                hasConstellation
-                        ? "[" + systemData.constellationName() + "]"
-                        : NO_CONSTELLATION,
+                MOCK_CONSTELLATION,
                 CONSTELLATION_PURPLE,
                 CONSTELLATION_VALUE
         ));

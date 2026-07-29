@@ -20,10 +20,10 @@ import java.io.IOException;
  *   HORN       (104, 16)   8x8   dokkaebi horn + eye motif
  *   GEM        ( 48, 24)  24x24  faceted gem rosette (right bracket)
  *   LABYRINTH  (  0, 48)  64x32  scenario-path glow, tileable in x
- *   BRACKET_L  (128,  0)  40x48  ornate left end bracket
- *   BRACKET_R  (168,  0)  40x48  ornate right end bracket
- *   PLATE      (208,  0)  24x24  9-slice, corner 8, hanging title plate
- *   DOKKAEBI   (232,  0)  16x16  horned channel-master head
+ *   BRACKET_L  (128,  0)  44x56  ornate left end bracket
+ *   BRACKET_R  (172,  0)  44x56  ornate right end bracket
+ *   PLATE      (216,  0)  24x24  9-slice, corner 8, hanging title plate
+ *   DOKKAEBI   (216, 24)  16x16  horned channel-master head
  */
 public final class GenerateStatusAtlas {
 
@@ -59,9 +59,9 @@ public final class GenerateStatusAtlas {
         gem(48, 24);
         labyrinth(0, 48, 64, 32);
         bracket(128, 0, false);
-        bracket(168, 0, true);
-        plate(208, 0);
-        icon(232, 0, DOKKAEBI);
+        bracket(172, 0, true);
+        plate(216, 0);
+        icon(216, 24, DOKKAEBI);
 
         File out = new File(args.length > 0 ? args[0]
                 : "src/main/resources/assets/orv/textures/gui/status_hud.png");
@@ -329,21 +329,31 @@ public final class GenerateStatusAtlas {
     }
 
     /**
-     * 40x48 ornate end bracket: a bevelled bronze plate with a recessed
-     * socket for the rosette and a scrolled crown. {@code mirrored} flips
-     * the scrollwork for the right-hand end.
+     * 44x56 ornate end bracket: a bevelled bronze plate with a recessed
+     * socket for the rosette, plus a scrolled crown and foot that overhang
+     * the bar. {@code mirrored} flips the scrollwork so the curls always
+     * face outward.
      */
     private static void bracket(int ox, int oy, boolean mirrored) {
-        int w = 40;
-        int h = 48;
+        int w = 44;
+        int h = 56;
 
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
                 int sx = mirrored ? w - 1 - x : x;
 
-                // Plate silhouette: full width in the body, tapered at the
-                // crown and foot so the piece reads as cast metal.
-                int inset = y < 6 ? 6 - y : (y > h - 7 ? y - (h - 7) : 0);
+                // Stepped silhouette: the plate narrows toward the crown
+                // and the foot so the volutes read as separate castings.
+                int inset;
+                if (y < 4 || y >= h - 4) {
+                    inset = 10;
+                } else if (y < 8 || y >= h - 8) {
+                    inset = 7;
+                } else if (y < 11 || y >= h - 11) {
+                    inset = 4;
+                } else {
+                    inset = 0;
+                }
                 if (sx < inset || sx >= w - inset) {
                     continue;
                 }
@@ -379,21 +389,33 @@ public final class GenerateStatusAtlas {
             }
         }
 
-        // Scrolled crown and foot: quarter arcs curling outward.
-        int scrollX = mirrored ? ox + w - 9 : ox + 8;
-        scroll(scrollX, oy + 6, mirrored);
-        scroll(scrollX, oy + h - 7, mirrored);
+        // Volutes curling outward at the crown and the foot.
+        int outerX = mirrored ? ox + w - 12 : ox + 11;
+        int innerX = mirrored ? ox + w - 23 : ox + 22;
+        scroll(outerX, oy + 9, mirrored, 4.6);
+        scroll(innerX, oy + 6, mirrored, 2.8);
+        scroll(outerX, oy + h - 10, mirrored, 4.6);
+        scroll(innerX, oy + h - 7, mirrored, 2.8);
     }
 
-    /** Small curled scroll used on the bracket crown and foot. */
-    private static void scroll(int cx, int cy, boolean mirrored) {
+    /** Curled scroll used on the bracket crown and foot. */
+    private static void scroll(
+            int cx,
+            int cy,
+            boolean mirrored,
+            double outerRadius
+    ) {
         int dir = mirrored ? -1 : 1;
-        for (int i = 0; i < 3; i++) {
-            double radius = 2.0 + i * 1.6;
-            for (double a = -Math.PI * 0.15; a < Math.PI * 1.05; a += 0.10) {
+        int turns = Math.max(2, (int) Math.round(outerRadius / 1.5));
+        for (int i = 0; i < turns; i++) {
+            double radius = outerRadius - i * 1.4;
+            if (radius < 0.8) {
+                break;
+            }
+            for (double a = -Math.PI * 0.2; a < Math.PI * 1.15; a += 0.08) {
                 int x = (int) Math.round(cx + Math.cos(a) * radius * dir);
                 int y = (int) Math.round(cy - Math.sin(a) * radius);
-                px(x, y, i == 0 ? GOLD_LIGHT : (i == 1 ? GOLD : COPPER_LIGHT));
+                px(x, y, i == 0 ? COPPER_LIGHT : (i == 1 ? GOLD : GOLD_LIGHT));
             }
         }
     }

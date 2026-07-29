@@ -43,20 +43,20 @@ public final class StatusAtlas {
     public static final int STAR_ON_U = 88;
     private static final int STAR_V = 16;
 
-    public static final int BRACKET_WIDTH = 40;
-    public static final int BRACKET_HEIGHT = 48;
+    public static final int BRACKET_WIDTH = 44;
+    public static final int BRACKET_HEIGHT = 56;
     private static final int BRACKET_LEFT_U = 128;
-    private static final int BRACKET_RIGHT_U = 168;
+    private static final int BRACKET_RIGHT_U = 172;
     private static final int BRACKET_V = 0;
 
-    private static final int PLATE_U = 208;
+    private static final int PLATE_U = 216;
     private static final int PLATE_V = 0;
     private static final int PLATE_SIZE = 24;
     private static final int PLATE_CORNER = 8;
 
     public static final int DOKKAEBI_SIZE = 16;
-    private static final int DOKKAEBI_U = 232;
-    private static final int DOKKAEBI_V = 0;
+    private static final int DOKKAEBI_U = 216;
+    private static final int DOKKAEBI_V = 24;
 
     private static final int LAB_U = 0;
     private static final int LAB_V = 48;
