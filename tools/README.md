@@ -69,3 +69,29 @@ java -Djava.awt.headless=true tools/PreviewStatusHud.java
 
 Same caveats as `PreviewGuildScreen`: approximated font metrics, mirrored
 constants from `ORVOverlayHud` and `StatusAtlas`.
+
+## `GenerateCharacterAtlas.java`
+
+Generates the character sheet atlas.
+
+```sh
+java tools/GenerateCharacterAtlas.java
+```
+
+Writes `src/main/resources/assets/orv/textures/gui/character_panel.png`
+(128x128), deterministically. It holds the twin-rule cyan frame with gold
+corner brackets, the watching-eye sigil, a clockwork gear, the dokkaebi
+horn-and-eye sigil and a tileable constellation field. The region layout is
+mirrored by `client/gui/CharacterAtlas.java`.
+
+## `PreviewCharacterScreen.java`
+
+Renders an offline preview of the character sheet and reports whether the
+readout overflows the panel.
+
+```sh
+java -Djava.awt.headless=true tools/PreviewCharacterScreen.java
+```
+
+Same caveats as the other previews: approximated font metrics, mirrored
+constants from `CharacterInfoScreen` and `CharacterAtlas`.

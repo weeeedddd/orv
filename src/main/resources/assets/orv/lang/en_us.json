@@ -1,6 +1,7 @@
 {
   "key.categories.orv": "ORV",
   "key.orv.open_guild": "Open Guild Menu",
+  "key.orv.open_character": "Open Character Information",
   "commands.orv.coins.add.success": "Added %s coins to %s player(s).",
   "commands.orv.coins.remove.success": "Removed %s coins from %s player(s).",
   "commands.orv.coins.set.success": "Set the balance of %2$s player(s) to %1$s coins.",

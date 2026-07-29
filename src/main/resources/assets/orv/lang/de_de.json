@@ -1,6 +1,7 @@
 {
   "key.categories.orv": "ORV",
   "key.orv.open_guild": "Gildenmenü öffnen",
+  "key.orv.open_character": "Charakterinfo öffnen",
   "commands.orv.coins.add.success": "%s Coins wurden zu %s Spieler(n) hinzugefügt.",
   "commands.orv.coins.remove.success": "%s Coins wurden von %s Spieler(n) entfernt.",
   "commands.orv.coins.set.success": "Das Guthaben von %2$s Spieler(n) wurde auf %1$s Coins gesetzt.",

@@ -26,7 +26,8 @@ Unter Linux oder macOS:
 
 Der erste Aufruf lädt die benötigten Gradle-, Minecraft- und
 NeoForge-Abhängigkeiten herunter. Das fertige Mod-JAR liegt danach unter
-`build/libs/orv-1.0.0.jar`. Im Test-Client öffnet `G` die Guild-Oberfläche.
+`build/libs/orv-1.0.0.jar`. Im Test-Client öffnet `G` die Guild-Oberfläche
+und `K` das Charakterblatt.
 
 In IntelliJ kann der Projektordner direkt als Gradle-Projekt geöffnet
 werden. Als Gradle-JVM muss Java 21 ausgewählt sein.
@@ -176,6 +177,28 @@ gekürzt — die Zahlenwerte bleiben immer vollständig lesbar.
 Der Atlas liegt in `assets/orv/textures/gui/status_hud.png` und wird von
 `tools/GenerateStatusAtlas.java` erzeugt; `tools/PreviewStatusHud.java`
 rendert die Leiste offline zur Kontrolle.
+
+## Character Information
+
+`CharacterInfoScreen` (Taste `K`) zeigt das Systemblatt einer Figur: ein
+hohes, transluzentes Panel über einem herabrieselnden „Star Stream" aus
+grünen Glyphenspalten. Der Rahmen besteht aus zwei leuchtenden Cyan-Linien
+mit goldenen Eckwinkeln, oben wachen zwei Augensiegel, unten sitzen zwei
+Zahnräder; dahinter liegt ein Konstellationsfeld.
+
+Die Zeilen sind als `Entry`/`Value`-Records modelliert: Label in Hellblau,
+Werte in Gold, Zusätze wie `(RARE)` oder `(STOLEN)` gedämpft, der
+Bewertungstext in Weiß. Passt der Inhalt nicht in die Panelhöhe, lässt er
+sich mit dem Mausrad scrollen (per Scissor sauber beschnitten).
+
+**Die Daten sind fest verdrahtet** und geben den freigegebenen Entwurf 1:1
+wieder — inklusive der dort so geschriebenen Formen „PARTRON OF THE ARTS"
+und „SAGE'S EUE". Für echte Spielerdaten müsste die Liste `ENTRIES` durch
+Attachment-Zugriffe ersetzt werden.
+
+Der Atlas liegt in `assets/orv/textures/gui/character_panel.png` und wird von
+`tools/GenerateCharacterAtlas.java` erzeugt; `tools/PreviewCharacterScreen.java`
+rendert den Screen offline zur Kontrolle.
 
 ## Guild UI & Networking
 
