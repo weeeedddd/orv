@@ -153,3 +153,20 @@ serverseitig autorisiert.
 Der Einstiegspunkt `createGuild(...)` ist für ein späteres Command- oder
 Menü-Feature vorgesehen. Dauerhafte Guild-Daten, Invite-Annahme und
 SavedData-Anbindung sind getrennte Folgeschritte.
+
+### Oberfläche
+
+Der `GuildScreen` ist in Dunkeleiche mit Kupfer- und Goldrahmen gehalten.
+Panel, Tabs, Listenzeilen, Pergamentkarte, Goldplakette und Sidebar werden
+als Nine-Slice-Regionen aus einem einzelnen Atlas gezeichnet
+(`assets/orv/textures/gui/guild_panel.png`); Text und Layout entstehen
+prozedural, damit die Beschriftung in jeder GUI-Skalierung scharf bleibt.
+
+Der Atlas ist generiert, nicht handgemalt — `tools/GenerateGuildAtlas.java`
+erzeugt ihn reproduzierbar. `tools/PreviewGuildScreen.java` rendert das
+Layout offline als PNG, um es ohne Client-Start prüfen zu können. Details
+siehe `tools/README.md`.
+
+Die Sidebar-Einträge *Create Guild* und *Guild Settings* sind bewusst
+inaktiv: dafür existiert serverseitig noch keine Payload. *Browse Invites*
+wechselt auf den Invite-Tab.
