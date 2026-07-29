@@ -10,7 +10,7 @@ import java.io.IOException;
  * Deterministic: rerunning reproduces the same bytes.
  *
  * Atlas layout (256x128, mirrored by StatusAtlas):
- *   FRAME      (  0,  0)  48x48  9-slice, corner 16, glowing filigree
+ *   FRAME      (  0,  0)  48x48  9-slice, corner 16, bronze bar frame
  *   SEAL       ( 48,  0)  24x24  gear + eye alchemy seal
  *   COIN       ( 72,  0)  16x16  dokkaebi-stamped gold coin
  *   ENERGY     ( 88,  0)  16x16  energy vortex
@@ -20,10 +20,10 @@ import java.io.IOException;
  *   HORN       (104, 16)   8x8   dokkaebi horn + eye motif
  *   GEM        ( 48, 24)  24x24  faceted gem rosette (right bracket)
  *   LABYRINTH  (  0, 48)  64x32  scenario-path glow, tileable in x
- *   BRACKET_L  (128,  0)  44x56  ornate left end bracket
- *   BRACKET_R  (172,  0)  44x56  ornate right end bracket
- *   PLATE      (216,  0)  24x24  9-slice, corner 8, hanging title plate
- *   DOKKAEBI   (216, 24)  16x16  horned channel-master head
+ *   BRACKET_L  (128,  0)  48x62  ornate left end bracket
+ *   BRACKET_R  (176,  0)  48x62  ornate right end bracket
+ *   PLATE      (224,  0)  24x24  9-slice, corner 8, hanging title plate
+ *   DOKKAEBI   (224, 24)  16x16  horned channel-master head
  */
 public final class GenerateStatusAtlas {
 
@@ -44,6 +44,14 @@ public final class GenerateStatusAtlas {
     private static final int RED_DARK = 0xFF8E2626;
     private static final int OUTLINE = 0xFF12161F;
 
+    // Warm bronze used for the bar frame and its end brackets.
+    private static final int FRAME_DARK = 0xFF2A1A10;
+    private static final int FRAME_SHADE = 0xFF5C3A20;
+    private static final int FRAME_MID = 0xFF8B5A34;
+    private static final int FRAME_LIGHT = 0xFFC28B58;
+    private static final int FRAME_HILITE = 0xFFE0B080;
+    private static final int FRAME_RULE = 0xFFD9B57A;
+
     private static final BufferedImage IMG =
             new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_ARGB);
 
@@ -59,9 +67,9 @@ public final class GenerateStatusAtlas {
         gem(48, 24);
         labyrinth(0, 48, 64, 32);
         bracket(128, 0, false);
-        bracket(172, 0, true);
-        plate(216, 0);
-        icon(216, 24, DOKKAEBI);
+        bracket(176, 0, true);
+        plate(224, 0);
+        icon(224, 24, DOKKAEBI);
 
         File out = new File(args.length > 0 ? args[0]
                 : "src/main/resources/assets/orv/textures/gui/status_hud.png");
@@ -78,9 +86,9 @@ public final class GenerateStatusAtlas {
     // ---------------------------------------------------------------
 
     /**
-     * Nine-slice filigree border: a bright gold rule cushioned by copper and
-     * a soft outward glow, with constellation nodes punched along the run.
-     * The centre stays clear so the panel fill shows through.
+     * Nine-slice bronze frame, roughly 8px thick: a dark outer keyline, a
+     * bevelled bronze band lit from the top left, a pale inner rule and an
+     * inner shadow. The centre stays clear so the bar fill shows through.
      */
     private static void frame(int ox, int oy) {
         int s = 48;
@@ -89,45 +97,27 @@ public final class GenerateStatusAtlas {
                 int dx = Math.min(x, s - 1 - x);
                 int dy = Math.min(y, s - 1 - y);
                 int d = Math.min(dx, dy);
+                // Top and left edges catch the light, bottom and right fall
+                // into shadow, so the band reads as a bevelled casting.
+                boolean lit = (dy <= dx && y < s / 2) || (dx < dy && x < s / 2);
 
                 Integer color = switch (d) {
-                    case 0 -> withAlpha(CYAN, 40);
-                    case 1 -> withAlpha(COPPER, 110);
-                    case 2 -> GOLD;
-                    case 3 -> withAlpha(COPPER_LIGHT, 170);
-                    case 4 -> withAlpha(CYAN, 70);
-                    case 5 -> withAlpha(CYAN, 26);
+                    case 0 -> FRAME_DARK;
+                    case 1 -> lit ? FRAME_HILITE : FRAME_SHADE;
+                    case 2, 3 -> lit ? FRAME_LIGHT : FRAME_MID;
+                    case 4, 5 -> lit ? FRAME_MID : FRAME_SHADE;
+                    case 6 -> FRAME_RULE;
+                    case 7 -> FRAME_DARK;
                     default -> null;
                 };
                 if (color != null) {
                     px(ox + x, oy + y, color);
                 }
 
-                // Constellation nodes every 8px along the bright rule.
-                if (d == 2) {
-                    int run = (dx < dy) ? y : x;
-                    if (Math.floorMod(run, 8) == 0) {
-                        px(ox + x, oy + y, GOLD_LIGHT);
-                        // Small cross-glow around each node.
-                        if (dx < dy) {
-                            px(ox + x - 1, oy + y, withAlpha(GOLD_LIGHT, 150));
-                            px(ox + x + 1, oy + y, withAlpha(GOLD_LIGHT, 150));
-                        } else {
-                            px(ox + x, oy + y - 1, withAlpha(GOLD_LIGHT, 150));
-                            px(ox + x, oy + y + 1, withAlpha(GOLD_LIGHT, 150));
-                        }
-                    }
+                // Faint hammered texture across the band.
+                if (d >= 2 && d <= 5 && hash(x, y) > 0.55) {
+                    px(ox + x, oy + y, withAlpha(FRAME_HILITE, 45));
                 }
-            }
-        }
-
-        // Alchemical corner rosettes. They hug the corner tightly so they
-        // stay clear of the panel's content area at any panel size.
-        for (int cx : new int[] {7, s - 8}) {
-            for (int cy : new int[] {7, s - 8}) {
-                ring(ox + cx, oy + cy, 4.6, 3.4, withAlpha(CYAN, 190));
-                ring(ox + cx, oy + cy, 2.6, 1.4, withAlpha(GOLD, 220));
-                px(ox + cx, oy + cy, GOLD_LIGHT);
             }
         }
     }
@@ -329,14 +319,14 @@ public final class GenerateStatusAtlas {
     }
 
     /**
-     * 44x56 ornate end bracket: a bevelled bronze plate with a recessed
+     * 48x62 ornate end bracket: a bevelled bronze plate with a recessed
      * socket for the rosette, plus a scrolled crown and foot that overhang
      * the bar. {@code mirrored} flips the scrollwork so the curls always
      * face outward.
      */
     private static void bracket(int ox, int oy, boolean mirrored) {
-        int w = 44;
-        int h = 56;
+        int w = 48;
+        int h = 62;
 
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
@@ -346,11 +336,11 @@ public final class GenerateStatusAtlas {
                 // and the foot so the volutes read as separate castings.
                 int inset;
                 if (y < 4 || y >= h - 4) {
-                    inset = 10;
-                } else if (y < 8 || y >= h - 8) {
+                    inset = 11;
+                } else if (y < 9 || y >= h - 9) {
                     inset = 7;
-                } else if (y < 11 || y >= h - 11) {
-                    inset = 4;
+                } else if (y < 13 || y >= h - 13) {
+                    inset = 3;
                 } else {
                     inset = 0;
                 }
@@ -361,41 +351,44 @@ public final class GenerateStatusAtlas {
                 int dx = Math.min(sx - inset, w - 1 - inset - sx);
                 int dy = Math.min(y, h - 1 - y);
                 int d = Math.min(dx, dy);
+                boolean lit = (dy <= dx && y < h / 2) || (dx < dy && sx < w / 2);
 
                 int color;
                 if (d == 0) {
-                    color = OUTLINE;
+                    color = FRAME_DARK;
                 } else if (d == 1) {
-                    color = (y < h / 2) ? COPPER_LIGHT : COPPER_DARK;
+                    color = lit ? FRAME_HILITE : FRAME_SHADE;
                 } else if (d <= 3) {
-                    color = blend(COPPER, COPPER_LIGHT,
-                            (y < h / 2) ? 0.55 : 0.15);
+                    color = lit ? FRAME_LIGHT : FRAME_MID;
                 } else {
-                    color = blend(COPPER_DARK, COPPER, 0.45);
+                    color = FRAME_MID;
                 }
                 px(ox + x, oy + y, color);
+                if (d >= 2 && hash(x, y) > 0.55) {
+                    px(ox + x, oy + y, withAlpha(FRAME_HILITE, 45));
+                }
             }
         }
 
         // Recessed socket the rosette sits in.
         int cx = ox + w / 2;
         int cy = oy + h / 2;
-        ring(cx, cy, 13.2, 12.0, OUTLINE);
-        for (int y = -12; y <= 12; y++) {
-            for (int x = -12; x <= 12; x++) {
-                if (Math.hypot(x, y) <= 12.0) {
-                    px(cx + x, cy + y, withAlpha(OUTLINE, 225));
+        ring(cx, cy, 14.4, 13.0, FRAME_DARK);
+        for (int y = -13; y <= 13; y++) {
+            for (int x = -13; x <= 13; x++) {
+                if (Math.hypot(x, y) <= 13.0) {
+                    px(cx + x, cy + y, withAlpha(FRAME_DARK, 235));
                 }
             }
         }
 
         // Volutes curling outward at the crown and the foot.
-        int outerX = mirrored ? ox + w - 12 : ox + 11;
-        int innerX = mirrored ? ox + w - 23 : ox + 22;
-        scroll(outerX, oy + 9, mirrored, 4.6);
-        scroll(innerX, oy + 6, mirrored, 2.8);
-        scroll(outerX, oy + h - 10, mirrored, 4.6);
-        scroll(innerX, oy + h - 7, mirrored, 2.8);
+        int outerX = mirrored ? ox + w - 13 : ox + 12;
+        int innerX = mirrored ? ox + w - 25 : ox + 24;
+        scroll(outerX, oy + 10, mirrored, 5.2);
+        scroll(innerX, oy + 6, mirrored, 3.0);
+        scroll(outerX, oy + h - 11, mirrored, 5.2);
+        scroll(innerX, oy + h - 7, mirrored, 3.0);
     }
 
     /** Curled scroll used on the bracket crown and foot. */
@@ -415,7 +408,7 @@ public final class GenerateStatusAtlas {
             for (double a = -Math.PI * 0.2; a < Math.PI * 1.15; a += 0.08) {
                 int x = (int) Math.round(cx + Math.cos(a) * radius * dir);
                 int y = (int) Math.round(cy - Math.sin(a) * radius);
-                px(x, y, i == 0 ? COPPER_LIGHT : (i == 1 ? GOLD : GOLD_LIGHT));
+                px(x, y, i == 0 ? FRAME_HILITE : (i == 1 ? GOLD : GOLD_LIGHT));
             }
         }
     }
@@ -432,15 +425,15 @@ public final class GenerateStatusAtlas {
 
                 int color;
                 if (d == 0) {
-                    color = OUTLINE;
+                    color = FRAME_DARK;
                 } else if (d == 1) {
-                    color = (y < h / 2) ? COPPER_LIGHT : COPPER_DARK;
+                    color = (y < h / 2) ? FRAME_HILITE : FRAME_SHADE;
                 } else if (d == 2) {
-                    color = COPPER;
+                    color = (y < h / 2) ? FRAME_LIGHT : FRAME_MID;
                 } else if (d == 3) {
-                    color = blend(COPPER_DARK, OUTLINE, 0.5);
+                    color = FRAME_DARK;
                 } else {
-                    color = withAlpha(0xFF0A0C12, 236);
+                    color = withAlpha(0xFF120C08, 240);
                 }
                 px(ox + x, oy + y, color);
             }

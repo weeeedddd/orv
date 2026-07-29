@@ -43,7 +43,7 @@ public final class ORVOverlayHud {
     private static final int GLOW_CYAN = 0xFF00E5FF;
 
     private static final int BAR_TOP = 8;
-    private static final int BAR_HEIGHT = 34;
+    private static final int BAR_HEIGHT = 42;
     private static final int BAR_MARGIN = 16;
     private static final int BAR_MAX_WIDTH = 1120;
     /** Smallest bar that still leaves room for both brackets and a gap. */
@@ -275,7 +275,7 @@ public final class ORVOverlayHud {
                     font,
                     fit(font, label, textWidth),
                     textX,
-                    BAR_TOP + 6,
+                    BAR_TOP + 10,
                     labelColor,
                     true
             );
@@ -283,7 +283,7 @@ public final class ORVOverlayHud {
                     font,
                     fit(font, value, textWidth),
                     textX,
-                    BAR_TOP + 18,
+                    BAR_TOP + 22,
                     valueColor,
                     true
             );
@@ -312,11 +312,12 @@ public final class ORVOverlayHud {
             int barX,
             int barWidth
     ) {
+        // Fill sits inside the 8px frame band.
         guiGraphics.fill(
-                barX + 3,
-                BAR_TOP + 3,
-                barX + barWidth - 3,
-                BAR_TOP + BAR_HEIGHT - 3,
+                barX + 6,
+                BAR_TOP + 6,
+                barX + barWidth - 6,
+                BAR_TOP + BAR_HEIGHT - 6,
                 BAR_FILL
         );
 
@@ -324,10 +325,10 @@ public final class ORVOverlayHud {
         guiGraphics.setColor(1.0F, 1.0F, 1.0F, 0.14F);
         StatusAtlas.labyrinth(
                 guiGraphics,
-                barX + 4,
-                BAR_TOP + 4,
-                barWidth - 8,
-                BAR_HEIGHT - 8
+                barX + 7,
+                BAR_TOP + 7,
+                barWidth - 14,
+                BAR_HEIGHT - 14
         );
         guiGraphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
 
@@ -409,7 +410,7 @@ public final class ORVOverlayHud {
             int x = barX + StatusAtlas.BRACKET_WIDTH + travel;
             boolean lower = index % 2 == 1;
             double wobble = Math.sin(millis / 950.0 + index * 1.7) * 2.5;
-            int y = (lower ? BAR_TOP + BAR_HEIGHT - 4 : BAR_TOP + 2)
+            int y = (lower ? BAR_TOP + BAR_HEIGHT - 8 : BAR_TOP + 6)
                     + (int) wobble;
 
             int size = 1 + (index % 2);

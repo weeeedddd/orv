@@ -143,11 +143,12 @@ Player-Werte gehören in Data Attachments.
 
 ## Status-HUD
 
-`ORVOverlayHud` rendert die ORV-Systemleiste als Topbar: ein Filigranrahmen
-mit ornamentalen Endkonsolen, links das Zahnrad-Augen-Siegel, rechts der
-facettierte Edelstein, dahinter ein schwach durchscheinendes
-„Scenario Path"-Labyrinth. Darunter hängt die Statusplatte mit dem
-Kanalmeister-Kopf.
+`ORVOverlayHud` rendert die ORV-Systemleiste als Topbar: ein rund 8px
+starker Bronzerahmen mit Fase und heller Innenlinie, an beiden Enden
+ornamentale Konsolen mit Voluten, die die Leiste oben und unten überragen —
+links das Zahnrad-Augen-Siegel, rechts der facettierte Edelstein. Dahinter
+liegt ein schwach durchscheinendes „Scenario Path"-Labyrinth, darunter hängt
+die Statusplatte mit dem Kanalmeister-Kopf.
 
 Die Leiste zeigt fünf Spalten: Kanal, Coins, Strength, Energy (als
 `wert / max`) und Constellation. Jede Spalte hat ihr eigenes Sigil; das

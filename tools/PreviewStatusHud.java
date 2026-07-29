@@ -32,7 +32,7 @@ public final class PreviewStatusHud {
     private static final int PLATE_TEXT = 0xFFE8D8B0;
     private static final int GLOW_CYAN = 0xFF00E5FF;
     private static final int BAR_TOP = 8;
-    private static final int BAR_HEIGHT = 34;
+    private static final int BAR_HEIGHT = 42;
     private static final int BAR_MARGIN = 16;
     private static final int BAR_MAX_WIDTH = 1120;
     private static final int BAR_MIN_WIDTH = 260;
@@ -59,14 +59,14 @@ public final class PreviewStatusHud {
     private static final int STAR_OFF_U = 72;
     private static final int STAR_ON_U = 88;
     private static final int STAR_V = 16;
-    private static final int BRACKET_W = 44;
-    private static final int BRACKET_H = 56;
+    private static final int BRACKET_W = 48;
+    private static final int BRACKET_H = 62;
     private static final int BRACKET_L_U = 128;
-    private static final int BRACKET_R_U = 172;
-    private static final int PLATE_U = 216;
+    private static final int BRACKET_R_U = 176;
+    private static final int PLATE_U = 224;
     private static final int PLATE_SIZE = 24;
     private static final int PLATE_CORNER = 8;
-    private static final int DOKKAEBI_U = 216;
+    private static final int DOKKAEBI_U = 224;
     private static final int DOKKAEBI_V = 24;
     private static final int DOKKAEBI_SIZE = 16;
     private static final int LAB_V = 48;
@@ -116,10 +116,10 @@ public final class PreviewStatusHud {
         int barX = (SCREEN_W - barWidth) / 2;
 
         // --- bar chrome ---
-        rect(barX + 3, BAR_TOP + 3, barX + barWidth - 3,
-                BAR_TOP + BAR_HEIGHT - 3, BAR_FILL);
-        tile(0, LAB_V, LAB_W, LAB_H, barX + 4, BAR_TOP + 4,
-                barWidth - 8, BAR_HEIGHT - 8, 0.14);
+        rect(barX + 6, BAR_TOP + 6, barX + barWidth - 6,
+                BAR_TOP + BAR_HEIGHT - 6, BAR_FILL);
+        tile(0, LAB_V, LAB_W, LAB_H, barX + 7, BAR_TOP + 7,
+                barWidth - 14, BAR_HEIGHT - 14, 0.14);
         nineSlice(0, 0, FRAME_SIZE, FRAME_CORNER, barX, BAR_TOP,
                 barWidth, BAR_HEIGHT);
 
@@ -211,7 +211,7 @@ public final class PreviewStatusHud {
             int mx = barX + BRACKET_W + travel;
             boolean lower = i % 2 == 1;
             double wobble = Math.sin(millis / 950.0 + i * 1.7) * 2.5;
-            int my = (lower ? BAR_TOP + BAR_HEIGHT - 4 : BAR_TOP + 2)
+            int my = (lower ? BAR_TOP + BAR_HEIGHT - 8 : BAR_TOP + 6)
                     + (int) wobble;
             int size = 1 + (i % 2);
             rect(mx, my, mx + size, my + size,
@@ -252,8 +252,8 @@ public final class PreviewStatusHud {
                     BAR_TOP + (BAR_HEIGHT - LINE_HEIGHT) / 2, s.labelColor(), true);
             return;
         }
-        draw(fit(s.label(), textWidth), textX, BAR_TOP + 6, s.labelColor(), true);
-        draw(fit(s.value(), textWidth), textX, BAR_TOP + 18, s.valueColor(), true);
+        draw(fit(s.label(), textWidth), textX, BAR_TOP + 10, s.labelColor(), true);
+        draw(fit(s.value(), textWidth), textX, BAR_TOP + 22, s.valueColor(), true);
     }
 
     private static String fit(String t, int maxWidth) {
