@@ -142,6 +142,21 @@ Darum gehört der enthaltene Clientbound Payload zur Lösung. Für
 ItemStack-Daten werden später Data Components verwendet; Coins und
 Player-Werte gehören in Data Attachments.
 
+## Status-HUD
+
+Das per GUI-Layer eingehängte `ORVOverlayHud` zeigt Coins, Energy, Strength
+und Constellation als geschichtetes, halbtransparentes Datenpanel: ein
+Filigranrahmen aus Gold und Kupfer mit Eck-Rosetten, flankierende
+Zahnrad-Augen-Siegel um die Kopfzeile, je ein eigenes Sigil pro Zeile
+(Münze, Energiewirbel, Schwertrune, Sternzeichen) und ein schwach
+durchscheinendes „Scenario Path"-Labyrinth hinter den Werten. Farbwerte und
+Texte sind unverändert; das Sternzeichen-Sigil leuchtet erst, wenn eine
+Konstellation gesetzt ist.
+
+Der Atlas liegt in `assets/orv/textures/gui/status_hud.png` und wird von
+`tools/GenerateStatusAtlas.java` erzeugt; `tools/PreviewStatusHud.java`
+rendert das HUD offline zur Kontrolle.
+
 ## Guild UI & Networking
 
 Das Paket enthält außerdem den per `G` geöffneten `GuildScreen` mit
@@ -154,7 +169,7 @@ Der Einstiegspunkt `createGuild(...)` ist für ein späteres Command- oder
 Menü-Feature vorgesehen. Dauerhafte Guild-Daten, Invite-Annahme und
 SavedData-Anbindung sind getrennte Folgeschritte.
 
-### Oberfläche
+### Guild-Oberfläche
 
 Der `GuildScreen` ist in Dunkeleiche mit Kupfer- und Goldrahmen gehalten.
 Panel, Tabs, Listenzeilen, Pergamentkarte, Goldplakette und Sidebar werden

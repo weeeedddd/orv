@@ -60,47 +60,24 @@ public final class GuildAtlas {
             int width,
             int height
     ) {
-        int corner = slice.corner();
-        int size = slice.size();
-        int u = slice.u();
-        int v = slice.v();
-
-        // Source width of the stretchable middle band.
-        int band = size - corner * 2;
-        int innerWidth = width - corner * 2;
-        int innerHeight = height - corner * 2;
-        int farU = u + size - corner;
-        int farV = v + size - corner;
-        int farX = x + width - corner;
-        int farY = y + height - corner;
-
-        blit(graphics, x, y, corner, corner, u, v, corner, corner);
-        blit(graphics, farX, y, corner, corner, farU, v, corner, corner);
-        blit(graphics, x, farY, corner, corner, u, farV, corner, corner);
-        blit(graphics, farX, farY, corner, corner, farU, farV, corner, corner);
-
-        if (innerWidth > 0) {
-            blit(graphics, x + corner, y, innerWidth, corner,
-                    u + corner, v, band, corner);
-            blit(graphics, x + corner, farY, innerWidth, corner,
-                    u + corner, farV, band, corner);
-        }
-        if (innerHeight > 0) {
-            blit(graphics, x, y + corner, corner, innerHeight,
-                    u, v + corner, corner, band);
-            blit(graphics, farX, y + corner, corner, innerHeight,
-                    farU, v + corner, corner, band);
-        }
-        if (innerWidth > 0 && innerHeight > 0) {
-            blit(graphics, x + corner, y + corner, innerWidth, innerHeight,
-                    u + corner, v + corner, band, band);
-        }
+        GuiBlit.nineSlice(
+                graphics,
+                TEXTURE,
+                ATLAS_SIZE,
+                slice.u(),
+                slice.v(),
+                slice.size(),
+                slice.corner(),
+                x,
+                y,
+                width,
+                height
+        );
     }
 
     /**
-     * Fills the given rectangle with repeated wood tiles. Partial tiles at
-     * the right and bottom edges are cropped rather than squashed, so the
-     * grain keeps a constant scale at any panel size.
+     * Fills the given rectangle with repeated wood tiles, so the grain keeps
+     * a constant scale at any panel size.
      */
     public static void tileWood(
             GuiGraphics graphics,
@@ -109,14 +86,19 @@ public final class GuildAtlas {
             int width,
             int height
     ) {
-        for (int offsetY = 0; offsetY < height; offsetY += WOOD_TILE) {
-            int tileHeight = Math.min(WOOD_TILE, height - offsetY);
-            for (int offsetX = 0; offsetX < width; offsetX += WOOD_TILE) {
-                int tileWidth = Math.min(WOOD_TILE, width - offsetX);
-                blit(graphics, x + offsetX, y + offsetY, tileWidth, tileHeight,
-                        WOOD_U, WOOD_V, tileWidth, tileHeight);
-            }
-        }
+        GuiBlit.tile(
+                graphics,
+                TEXTURE,
+                ATLAS_SIZE,
+                WOOD_U,
+                WOOD_V,
+                WOOD_TILE,
+                WOOD_TILE,
+                x,
+                y,
+                width,
+                height
+        );
     }
 
     /** Draws one of the 16x16 sidebar icons. */
@@ -126,33 +108,18 @@ public final class GuildAtlas {
             int x,
             int y
     ) {
-        blit(graphics, x, y, ICON_SIZE, ICON_SIZE,
-                iconU, ICON_V, ICON_SIZE, ICON_SIZE);
-    }
-
-    private static void blit(
-            GuiGraphics graphics,
-            int x,
-            int y,
-            int width,
-            int height,
-            int u,
-            int v,
-            int sourceWidth,
-            int sourceHeight
-    ) {
-        graphics.blit(
+        GuiBlit.blit(
+                graphics,
                 TEXTURE,
+                ATLAS_SIZE,
                 x,
                 y,
-                width,
-                height,
-                (float) u,
-                (float) v,
-                sourceWidth,
-                sourceHeight,
-                ATLAS_SIZE,
-                ATLAS_SIZE
+                ICON_SIZE,
+                ICON_SIZE,
+                iconU,
+                ICON_V,
+                ICON_SIZE,
+                ICON_SIZE
         );
     }
 
