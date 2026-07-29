@@ -101,6 +101,7 @@ public final class GuildScreen extends Screen {
             int mouseY,
             float partialTick
     ) {
+        renderWorldBackground(graphics, mouseX, mouseY, partialTick);
         graphics.fill(0, 0, width, height, GuildTheme.BACKDROP);
 
         Layout layout = layout();
@@ -115,6 +116,37 @@ public final class GuildScreen extends Screen {
         super.render(graphics, mouseX, mouseY, partialTick);
 
         renderMotes(graphics, layout);
+    }
+
+    /**
+     * Renders Minecraft's world blur before any guild content is drawn.
+     *
+     * <p>{@link Screen#render} invokes {@link #renderBackground} immediately
+     * before rendering widgets. Calling it unchanged after the custom guild
+     * layers would blur those layers as part of the current framebuffer.
+     */
+    protected void renderWorldBackground(
+            GuiGraphics graphics,
+            int mouseX,
+            int mouseY,
+            float partialTick
+    ) {
+        super.renderBackground(graphics, mouseX, mouseY, partialTick);
+    }
+
+    /**
+     * The background pass already ran at the beginning of {@link #render}.
+     * This override prevents {@link Screen#render} from applying it again
+     * after the custom guild layers have been drawn.
+     */
+    @Override
+    public void renderBackground(
+            GuiGraphics graphics,
+            int mouseX,
+            int mouseY,
+            float partialTick
+    ) {
+        // Intentionally empty.
     }
 
     @Override
