@@ -178,6 +178,18 @@ Der Atlas liegt in `assets/orv/textures/gui/status_hud.png` und wird von
 `tools/GenerateStatusAtlas.java` erzeugt; `tools/PreviewStatusHud.java`
 rendert die Leiste offline zur Kontrolle.
 
+## Charakter-Daten
+
+Skills und Attributes liegen im persistenten Attachment
+`orv:character_profile` (`CharacterProfile`): Skills mit Name, Level und
+`stolen`-Flag, Attributes mit Name und Rarity. Stigmas werden nicht dort
+dupliziert, sondern beim Senden aus `orv:player_sponsor` aufgelöst.
+
+Alle Änderungen laufen über `CharacterService` (`grantSkill`,
+`removeSkill`, `grantAttribute`, `removeAttribute`, `setAge`), das danach
+`SyncCharacterProfilePayload` (`orv:character_sync`) sendet. Der Client
+legt den Stand in `CharacterClientCache` ab.
+
 ## Character Information
 
 `CharacterInfoScreen` (Taste `K`) zeigt das Systemblatt einer Figur: ein
@@ -191,10 +203,11 @@ Werte in Gold, Zusätze wie `(RARE)` oder `(STOLEN)` gedämpft, der
 Bewertungstext in Weiß. Passt der Inhalt nicht in die Panelhöhe, lässt er
 sich mit dem Mausrad scrollen (per Scissor sauber beschnitten).
 
-**Die Daten sind fest verdrahtet** und geben den freigegebenen Entwurf 1:1
-wieder — inklusive der dort so geschriebenen Formen „PARTRON OF THE ARTS"
-und „SAGE'S EUE". Für echte Spielerdaten müsste die Liste `ENTRIES` durch
-Attachment-Zugriffe ersetzt werden.
+Alle Zeilen stammen aus echten Serverdaten — Name und Level aus dem
+Charakter-Payload, Coins/Energy/Constellation aus dem System-Snapshot,
+Skills/Attributes/Stigmas aus dem Profil. Leere Listen zeigen
+`[NONE RECORDED]`, statt die Überschrift verschwinden zu lassen; bis der
+erste Sync eintrifft steht dort `Awaiting system sync...`.
 
 Der Atlas liegt in `assets/orv/textures/gui/character_panel.png` und wird von
 `tools/GenerateCharacterAtlas.java` erzeugt; `tools/PreviewCharacterScreen.java`
@@ -207,10 +220,44 @@ Member-, Invite- und Guild-Quest-Tab. Die Payloads synchronisieren
 Online-Spieler und Guild-Snapshots; Invite- und Rollenaktionen werden
 serverseitig autorisiert.
 
-`GuildService` verwendet für diesen Meilenstein bewusst In-Memory-Daten.
-Der Einstiegspunkt `createGuild(...)` ist für ein späteres Command- oder
-Menü-Feature vorgesehen. Dauerhafte Guild-Daten, Invite-Annahme und
-SavedData-Anbindung sind getrennte Folgeschritte.
+### Gilden-Datenstruktur
+
+Gilden liegen persistent in `GuildStorage`, einer `SavedData` am Overworld-
+Storage. Eine `Guild` hat Id, Name, Emblem und eine Mitgliederkarte
+(`UUID -> Member{lastKnownName, role}`). Ein abgeleiteter Rückwärtsindex
+Spieler→Gilde hält Mitgliedschaftsabfragen bei O(1) und wird beim Laden neu
+aufgebaut, statt mitgespeichert zu werden. Verwaiste Gilden ohne Mitglieder
+werden entfernt.
+
+Pending Invites bleiben bewusst flüchtig und laufen mit der Session aus.
+
+### Gilden-Gründung
+
+`GuildCreationCheck.evaluate(...)` prüft in fester Reihenfolge: bereits in
+einer Gilde, Level, Coins, Name. Schwellen kommen aus der Server-Config
+(`GuildConfig`, Default Level 10 und 15.000 Coins) und sind damit
+konfigurierbar.
+
+Das Ergebnis wird zweifach genutzt: serverseitig in
+`GuildService.createGuild(...)`, das erst prüft, dann die Coins abbucht und
+nur bei erfolgreicher Buchung die Gilde anlegt — und im `GuildSnapshot`, so
+dass der Client den *Create Guild*-Button ausgrauen und den exakten Grund
+als Tooltip anzeigen kann. Die Client-Anzeige ist reine Höflichkeit: der
+Server prüft bei `CreateGuildPayload` erneut.
+
+### Fenster öffnen
+
+Screens lassen sich nur clientseitig öffnen, deshalb schickt der Server
+`OpenScreenPayload`. Darüber laufen:
+
+```text
+/orv status     bzw.  /orv window   → Charakterblatt
+/orv guild                          → Gildenkonsole
+/orv guild create <name>            → Gilde gründen
+```
+
+Der `/orv`-Wurzelknoten ist offen; nur `/orv coins` verlangt weiterhin
+Permission-Level 2.
 
 ### Guild-Oberfläche
 

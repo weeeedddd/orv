@@ -8,11 +8,14 @@ public record GuildSnapshot(
         UUID viewerId,
         GuildRole viewerRole,
         List<Member> members,
-        List<OnlinePlayer> onlinePlayers
+        List<OnlinePlayer> onlinePlayers,
+        String emblem,
+        GuildCreationCheck creation
 ) {
     public GuildSnapshot {
         members = List.copyOf(members);
         onlinePlayers = List.copyOf(onlinePlayers);
+        emblem = emblem == null ? "" : emblem;
     }
 
     public record Member(

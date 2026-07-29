@@ -1,5 +1,8 @@
 package com.weeeedddd.orv.network;
 
+import com.weeeedddd.orv.client.ClientScreenOpener;
+import com.weeeedddd.orv.client.character.ClientCharacterPayloadHandler;
+import com.weeeedddd.orv.character.CharacterService;
 import com.weeeedddd.orv.OrvMod;
 import com.weeeedddd.orv.client.guild.GuildClientState;
 import com.weeeedddd.orv.client.system.ClientSystemPayloadHandler;
@@ -36,6 +39,21 @@ public final class ModNetworking {
                 ClientSystemPayloadHandler::handle
         );
         registrar.playToClient(
+                SyncCharacterProfilePayload.TYPE,
+                SyncCharacterProfilePayload.STREAM_CODEC,
+                ClientCharacterPayloadHandler::handle
+        );
+        registrar.playToClient(
+                OpenScreenPayload.TYPE,
+                OpenScreenPayload.STREAM_CODEC,
+                ClientScreenOpener::handle
+        );
+        registrar.playToServer(
+                CreateGuildPayload.TYPE,
+                CreateGuildPayload.STREAM_CODEC,
+                ModNetworking::handleCreateGuild
+        );
+        registrar.playToClient(
                 SyncPlayerStatsPayload.TYPE,
                 SyncPlayerStatsPayload.STREAM_CODEC,
                 ModNetworking::handleSyncPlayerStats
@@ -65,6 +83,7 @@ public final class ModNetworking {
     public static void syncPlayerData(ServerPlayer player) {
         syncSystemData(player);
         syncPlayerStats(player);
+        CharacterService.sync(player);
     }
 
     public static void syncSystemData(ServerPlayer player) {
@@ -220,5 +239,34 @@ public final class ModNetworking {
         public Type<? extends CustomPacketPayload> type() {
             return TYPE;
         }
+    }
+
+    private static void handleCreateGuild(
+            CreateGuildPayload payload,
+            IPayloadContext context
+    ) {
+        context.enqueueWork(() -> {
+            if (context.player() instanceof ServerPlayer player) {
+                GuildService.createGuild(
+                        player,
+                        payload.guildName(),
+                        payload.emblem()
+                );
+                PacketDistributor.sendToPlayer(
+                        player,
+                        new GuildPayloads.GuildScreenDataPayload(
+                                GuildService.snapshotFor(player)
+                        )
+                );
+            }
+        });
+    }
+
+    /** Asks the client to open one of the mod's screens. */
+    public static void openScreen(
+            ServerPlayer player,
+            OpenScreenPayload.Target target
+    ) {
+        PacketDistributor.sendToPlayer(player, new OpenScreenPayload(target));
     }
 }

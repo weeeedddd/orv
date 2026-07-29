@@ -1,5 +1,7 @@
 package com.weeeedddd.orv.guild;
 
+import com.weeeedddd.orv.data.ModAttachments;
+import com.weeeedddd.orv.economy.CoinService;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -12,52 +14,91 @@ import java.util.Map;
 import java.util.UUID;
 
 public final class GuildService {
-    public static final int MAX_GUILD_NAME_LENGTH = 48;
+    public static final int MAX_GUILD_NAME_LENGTH =
+            GuildStorage.MAX_GUILD_NAME_LENGTH;
     public static final int MAX_INVITE_NOTE_LENGTH = 160;
 
-    private static final Map<UUID, GuildRecord> GUILDS = new HashMap<>();
-    private static final Map<UUID, UUID> GUILD_BY_PLAYER = new HashMap<>();
+    // Membership lives in GuildStorage so it survives a restart. Pending
+    // invites are deliberately transient: they expire with the session.
     private static final Map<UUID, PendingInvite> PENDING_INVITES = new HashMap<>();
 
     private GuildService() {
     }
 
     /**
-     * Entry point for the future guild-creation command or menu.
-     * Storage is intentionally in-memory until Guild SavedData is implemented.
+     * Tests whether {@code player} may found a guild right now. Pass
+     * {@code null} for {@code requestedName} to ask about eligibility alone,
+     * which is what the client does to decide whether to grey the button.
      */
-    public static boolean createGuild(ServerPlayer leader, String requestedName) {
-        if (GUILD_BY_PLAYER.containsKey(leader.getUUID())) {
-            return false;
+    public static GuildCreationCheck checkCreation(
+            ServerPlayer player,
+            String requestedName
+    ) {
+        GuildStorage storage = GuildStorage.get(player.getServer());
+        return GuildCreationCheck.evaluate(
+                storage.isInGuild(player.getUUID()),
+                ModAttachments.getStrengthLevel(player),
+                CoinService.getCoins(player),
+                requestedName == null
+                        ? null
+                        : normalizeGuildName(requestedName)
+        );
+    }
+
+    /**
+     * Founds a guild once every requirement is met, charging the configured
+     * cost. Returns the check so the caller can report the exact reason on
+     * failure; nothing is mutated unless the check passes.
+     */
+    public static GuildCreationCheck createGuild(
+            ServerPlayer leader,
+            String requestedName,
+            String emblem
+    ) {
+        GuildCreationCheck check = checkCreation(leader, requestedName);
+        if (!check.allowed()) {
+            leader.sendSystemMessage(Component.literal(check.describe()));
+            return check;
         }
 
-        String guildName = normalizeGuildName(requestedName);
-        if (guildName.isBlank()) {
-            return false;
+        // Charge before creating: if the debit fails the guild is not made.
+        if (!CoinService.removeCoins(leader, check.requiredCoins())) {
+            leader.sendSystemMessage(Component.literal(
+                    "Coin transaction failed; the guild was not created."
+            ));
+            return new GuildCreationCheck(
+                    GuildCreationCheck.Status.NOT_ENOUGH_COINS,
+                    check.requiredLevel(),
+                    check.requiredCoins(),
+                    check.playerLevel(),
+                    CoinService.getCoins(leader)
+            );
         }
 
-        UUID guildId = UUID.randomUUID();
-        GuildRecord guild = new GuildRecord(guildId, guildName);
-        guild.members.put(
+        GuildStorage storage = GuildStorage.get(leader.getServer());
+        GuildStorage.Guild guild = storage.create(
                 leader.getUUID(),
-                new MemberRecord(
-                        leader.getGameProfile().getName(),
-                        GuildRole.LEADER
-                )
+                leader.getGameProfile().getName(),
+                normalizeGuildName(requestedName),
+                emblem
         );
 
-        GUILDS.put(guildId, guild);
-        GUILD_BY_PLAYER.put(leader.getUUID(), guildId);
-        return true;
+        leader.sendSystemMessage(Component.literal(
+                "Guild \"" + guild.name() + "\" founded for "
+                        + check.requiredCoins() + " coins."
+        ));
+        return check;
     }
 
     public static GuildSnapshot snapshotFor(ServerPlayer viewer) {
         MinecraftServer server = viewer.getServer();
-        UUID guildId = GUILD_BY_PLAYER.get(viewer.getUUID());
-        GuildRecord guild = guildId == null ? null : GUILDS.get(guildId);
+        GuildStorage storage = GuildStorage.get(server);
+        GuildStorage.Guild guild = storage.guildOf(viewer.getUUID())
+                .orElse(null);
 
         List<GuildSnapshot.OnlinePlayer> onlinePlayers =
                 buildOnlinePlayerList(server, viewer);
+        GuildCreationCheck creation = checkCreation(viewer, null);
 
         if (guild == null) {
             return new GuildSnapshot(
@@ -65,27 +106,34 @@ public final class GuildService {
                     viewer.getUUID(),
                     GuildRole.NONE,
                     List.of(),
-                    onlinePlayers
+                    onlinePlayers,
+                    "",
+                    creation
             );
         }
 
-        MemberRecord viewerMember = guild.members.get(viewer.getUUID());
+        GuildStorage.Member viewerMember =
+                guild.members().get(viewer.getUUID());
         GuildRole viewerRole = viewerMember == null
                 ? GuildRole.NONE
                 : viewerMember.role();
 
         List<GuildSnapshot.Member> members = new ArrayList<>();
-        for (Map.Entry<UUID, MemberRecord> entry : guild.members.entrySet()) {
+        for (Map.Entry<UUID, GuildStorage.Member> entry
+                : guild.members().entrySet()) {
             UUID playerId = entry.getKey();
-            MemberRecord member = entry.getValue();
-            ServerPlayer onlinePlayer = server.getPlayerList().getPlayer(playerId);
+            GuildStorage.Member member = entry.getValue();
+            ServerPlayer onlinePlayer =
+                    server.getPlayerList().getPlayer(playerId);
 
-            if (onlinePlayer != null) {
-                member = new MemberRecord(
+            if (onlinePlayer != null
+                    && !onlinePlayer.getGameProfile().getName()
+                            .equals(member.lastKnownName())) {
+                member = new GuildStorage.Member(
                         onlinePlayer.getGameProfile().getName(),
                         member.role()
                 );
-                guild.members.put(playerId, member);
+                storage.putMember(guild.id(), playerId, member);
             }
 
             members.add(new GuildSnapshot.Member(
@@ -109,11 +157,13 @@ public final class GuildService {
         );
 
         return new GuildSnapshot(
-                guild.name,
+                guild.name(),
                 viewer.getUUID(),
                 viewerRole,
                 members,
-                onlinePlayers
+                onlinePlayers,
+                guild.emblem(),
+                creation
         );
     }
 
@@ -123,8 +173,9 @@ public final class GuildService {
             String targetPlayerName,
             String rawNote
     ) {
-        UUID guildId = GUILD_BY_PLAYER.get(sender.getUUID());
-        GuildRecord guild = guildId == null ? null : GUILDS.get(guildId);
+        GuildStorage storage = GuildStorage.get(sender.getServer());
+        GuildStorage.Guild guild = storage.guildOf(sender.getUUID())
+                .orElse(null);
 
         if (guild == null) {
             sender.sendSystemMessage(Component.literal(
@@ -133,7 +184,8 @@ public final class GuildService {
             return false;
         }
 
-        MemberRecord senderMember = guild.members.get(sender.getUUID());
+        GuildStorage.Member senderMember =
+                guild.members().get(sender.getUUID());
         if (senderMember == null || !senderMember.role().canInvite()) {
             sender.sendSystemMessage(Component.literal(
                     "Your guild role cannot send invitations."
@@ -157,7 +209,7 @@ public final class GuildService {
             return false;
         }
 
-        if (GUILD_BY_PLAYER.containsKey(targetPlayerId)) {
+        if (storage.isInGuild(targetPlayerId)) {
             sender.sendSystemMessage(Component.literal(
                     "That player already belongs to a guild."
             ));
@@ -167,7 +219,7 @@ public final class GuildService {
         String note = normalizeNote(rawNote);
         PENDING_INVITES.put(
                 targetPlayerId,
-                new PendingInvite(guildId, sender.getUUID(), note)
+                new PendingInvite(guild.id(), sender.getUUID(), note)
         );
 
         sender.sendSystemMessage(Component.literal(
@@ -176,7 +228,7 @@ public final class GuildService {
         target.sendSystemMessage(Component.literal(
                 sender.getGameProfile().getName()
                         + " invited you to join "
-                        + guild.name
+                        + guild.name()
                         + "."
         ));
 
@@ -192,15 +244,18 @@ public final class GuildService {
             UUID targetPlayerId,
             GuildRoleAction action
     ) {
-        UUID guildId = GUILD_BY_PLAYER.get(actor.getUUID());
-        GuildRecord guild = guildId == null ? null : GUILDS.get(guildId);
+        GuildStorage storage = GuildStorage.get(actor.getServer());
+        GuildStorage.Guild guild = storage.guildOf(actor.getUUID())
+                .orElse(null);
 
         if (guild == null || actor.getUUID().equals(targetPlayerId)) {
             return false;
         }
 
-        MemberRecord actorMember = guild.members.get(actor.getUUID());
-        MemberRecord targetMember = guild.members.get(targetPlayerId);
+        GuildStorage.Member actorMember =
+                guild.members().get(actor.getUUID());
+        GuildStorage.Member targetMember =
+                guild.members().get(targetPlayerId);
         if (actorMember == null || targetMember == null) {
             return false;
         }
@@ -209,10 +264,14 @@ public final class GuildService {
         GuildRole targetRole = targetMember.role();
 
         boolean changed = switch (action) {
-            case PROMOTE -> promote(guild, targetPlayerId, actorRole, targetMember);
-            case DEMOTE -> demote(guild, targetPlayerId, actorRole, targetMember);
-            case KICK -> kick(guild, targetPlayerId, actorRole, targetRole);
+            case PROMOTE -> promote(
+                    storage, guild, targetPlayerId, actorRole, targetMember);
+            case DEMOTE -> demote(
+                    storage, guild, targetPlayerId, actorRole, targetMember);
+            case KICK -> kick(
+                    storage, guild, targetPlayerId, actorRole, targetRole);
             case TRANSFER_LEADERSHIP -> transferLeadership(
+                    storage,
                     guild,
                     actor.getUUID(),
                     targetPlayerId,
@@ -238,14 +297,15 @@ public final class GuildService {
             MinecraftServer server,
             UUID memberId
     ) {
-        UUID guildId = GUILD_BY_PLAYER.get(memberId);
-        GuildRecord guild = guildId == null ? null : GUILDS.get(guildId);
+        GuildStorage.Guild guild = GuildStorage.get(server)
+                .guildOf(memberId)
+                .orElse(null);
         if (guild == null) {
             return List.of();
         }
 
         List<ServerPlayer> onlineMembers = new ArrayList<>();
-        for (UUID playerId : guild.members.keySet()) {
+        for (UUID playerId : guild.members().keySet()) {
             ServerPlayer player = server.getPlayerList().getPlayer(playerId);
             if (player != null) {
                 onlineMembers.add(player);
@@ -265,7 +325,7 @@ public final class GuildService {
                 .map(player -> new GuildSnapshot.OnlinePlayer(
                         player.getUUID(),
                         player.getGameProfile().getName(),
-                        !GUILD_BY_PLAYER.containsKey(player.getUUID())
+                        !GuildStorage.get(server).isInGuild(player.getUUID())
                                 && !PENDING_INVITES.containsKey(player.getUUID())
                 ))
                 .sorted(Comparator.comparing(
@@ -276,39 +336,42 @@ public final class GuildService {
     }
 
     private static boolean promote(
-            GuildRecord guild,
+            GuildStorage storage,
+            GuildStorage.Guild guild,
             UUID targetId,
             GuildRole actorRole,
-            MemberRecord target
+            GuildStorage.Member target
     ) {
         if (!actorRole.canPromote(target.role())) {
             return false;
         }
-        guild.members.put(
-                targetId,
-                new MemberRecord(target.lastKnownName(), GuildRole.VICE_LEADER)
-        );
+        storage.putMember(guild.id(), targetId, new GuildStorage.Member(
+                target.lastKnownName(),
+                GuildRole.VICE_LEADER
+        ));
         return true;
     }
 
     private static boolean demote(
-            GuildRecord guild,
+            GuildStorage storage,
+            GuildStorage.Guild guild,
             UUID targetId,
             GuildRole actorRole,
-            MemberRecord target
+            GuildStorage.Member target
     ) {
         if (!actorRole.canDemote(target.role())) {
             return false;
         }
-        guild.members.put(
-                targetId,
-                new MemberRecord(target.lastKnownName(), GuildRole.MEMBER)
-        );
+        storage.putMember(guild.id(), targetId, new GuildStorage.Member(
+                target.lastKnownName(),
+                GuildRole.MEMBER
+        ));
         return true;
     }
 
     private static boolean kick(
-            GuildRecord guild,
+            GuildStorage storage,
+            GuildStorage.Guild guild,
             UUID targetId,
             GuildRole actorRole,
             GuildRole targetRole
@@ -316,30 +379,30 @@ public final class GuildService {
         if (!actorRole.canKick(targetRole)) {
             return false;
         }
-        guild.members.remove(targetId);
-        GUILD_BY_PLAYER.remove(targetId);
+        storage.removeMember(guild.id(), targetId);
         return true;
     }
 
     private static boolean transferLeadership(
-            GuildRecord guild,
+            GuildStorage storage,
+            GuildStorage.Guild guild,
             UUID actorId,
             UUID targetId,
-            MemberRecord actor,
-            MemberRecord target
+            GuildStorage.Member actor,
+            GuildStorage.Member target
     ) {
         if (!actor.role().canTransferLeadership(target.role())) {
             return false;
         }
 
-        guild.members.put(
-                actorId,
-                new MemberRecord(actor.lastKnownName(), GuildRole.VICE_LEADER)
-        );
-        guild.members.put(
-                targetId,
-                new MemberRecord(target.lastKnownName(), GuildRole.LEADER)
-        );
+        storage.putMember(guild.id(), actorId, new GuildStorage.Member(
+                actor.lastKnownName(),
+                GuildRole.VICE_LEADER
+        ));
+        storage.putMember(guild.id(), targetId, new GuildStorage.Member(
+                target.lastKnownName(),
+                GuildRole.LEADER
+        ));
         return true;
     }
 
@@ -355,20 +418,6 @@ public final class GuildService {
         return note.length() <= MAX_INVITE_NOTE_LENGTH
                 ? note
                 : note.substring(0, MAX_INVITE_NOTE_LENGTH);
-    }
-
-    private static final class GuildRecord {
-        private final UUID id;
-        private final String name;
-        private final Map<UUID, MemberRecord> members = new HashMap<>();
-
-        private GuildRecord(UUID id, String name) {
-            this.id = id;
-            this.name = name;
-        }
-    }
-
-    private record MemberRecord(String lastKnownName, GuildRole role) {
     }
 
     private record PendingInvite(

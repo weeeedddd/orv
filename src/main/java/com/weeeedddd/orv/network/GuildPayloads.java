@@ -1,9 +1,11 @@
 package com.weeeedddd.orv.network;
 
 import com.weeeedddd.orv.OrvMod;
+import com.weeeedddd.orv.guild.GuildCreationCheck;
 import com.weeeedddd.orv.guild.GuildRole;
 import com.weeeedddd.orv.guild.GuildRoleAction;
 import com.weeeedddd.orv.guild.GuildSnapshot;
+import com.weeeedddd.orv.guild.GuildStorage;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
@@ -206,12 +208,23 @@ public final class GuildPayloads {
             ));
         }
 
+        String emblem = buffer.readUtf(GuildStorage.MAX_EMBLEM_LENGTH);
+        GuildCreationCheck creation = new GuildCreationCheck(
+                buffer.readEnum(GuildCreationCheck.Status.class),
+                buffer.readVarInt(),
+                buffer.readVarLong(),
+                buffer.readVarInt(),
+                buffer.readVarLong()
+        );
+
         return new GuildSnapshot(
                 guildName,
                 viewerId,
                 viewerRole,
                 members,
-                onlinePlayers
+                onlinePlayers,
+                emblem,
+                creation
         );
     }
 
@@ -248,6 +261,14 @@ public final class GuildPayloads {
             );
             buffer.writeBoolean(player.available());
         }
+
+        buffer.writeUtf(snapshot.emblem(), GuildStorage.MAX_EMBLEM_LENGTH);
+        GuildCreationCheck creation = snapshot.creation();
+        buffer.writeEnum(creation.status());
+        buffer.writeVarInt(creation.requiredLevel());
+        buffer.writeVarLong(creation.requiredCoins());
+        buffer.writeVarInt(creation.playerLevel());
+        buffer.writeVarLong(creation.playerCoins());
     }
 
     private static int readBoundedCount(

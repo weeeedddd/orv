@@ -1,19 +1,25 @@
 package com.weeeedddd.orv.client.gui;
 
+import com.weeeedddd.orv.character.CharacterProfile;
+import com.weeeedddd.orv.client.character.CharacterClientCache;
+import com.weeeedddd.orv.client.system.SystemDataClientCache;
+import com.weeeedddd.orv.client.system.SystemDataSnapshot;
+import com.weeeedddd.orv.network.SyncCharacterProfilePayload;
 import net.minecraft.Util;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
  * The system character sheet: a tall translucent panel over a cascading
  * star-stream backdrop.
  *
- * <p>The readout is fixed to the approved design mock — see {@link #ENTRIES}.
- * Nothing here reads player state yet; wiring it up means replacing that
- * list with data pulled from an attachment.
+ * <p>Every row is built from live server data: the character profile
+ * arrives on {@code orv:character_sync} and the economy values on
+ * {@code orv:system_sync}. Nothing on this screen is hardcoded.
  */
 public final class CharacterInfoScreen extends Screen {
 
@@ -258,7 +264,7 @@ public final class CharacterInfoScreen extends Screen {
     ) {
         int y = top;
 
-        for (Entry entry : ENTRIES) {
+        for (Entry entry : buildEntries()) {
             int labelWidth = font.width(entry.label());
             int valueX = x + labelWidth + LABEL_GAP;
 
@@ -326,51 +332,95 @@ public final class CharacterInfoScreen extends Screen {
         }
     }
 
-    // Fixed readout, transcribed from the design mock. The spellings
-    // "PARTRON OF THE ARTS" and "SAGE'S EUE" are reproduced as drawn.
-    private static final List<Entry> ENTRIES = List.of(
-            new Entry("NAME:", List.of(new Value("CHOI EUNBYEOL"))),
-            new Entry("AGE:", List.of(new Value("25"))),
-            new Entry("CONSTELLATION SUPPORT:", List.of(
-                    new Value("RADIANT PARIAH", null, true)
-            )),
-            new Entry("PERSONAL ATTRIBUTES:", List.of(
-                    new Value("PARTRON OF THE ARTS", "(RARE)"),
-                    new Value("PRIMA BALLERINA ASSOLUTA", "(RARE)"),
-                    new Value("PAINTER", "(COMMON)")
-            )),
-            new Entry("PERSONAL SKILLS:", List.of(
-                    new Value("[HIGH FLEXIBILITY LV.5]"),
-                    new Value("[PITIFUL CON-ARTIST LV.6]"),
-                    new Value("[MUSCLE MEMORY LV.4]"),
-                    new Value("[APT STUDENT LV.1]"),
-                    new Value("[LIGHT-FOOTED LV.3]"),
-                    new Value("[BLACKENING LV.1]", "(STOLEN)"),
-                    new Value("[COLD RESISTANCE LV.4]", "(STOLEN)"),
-                    new Value("[LIE DETECTION LV.4]", "(STOLEN)"),
-                    new Value("[MENTAL BARRIER LV.5]", "(STOLEN)"),
-                    new Value("[ADEPT SWIMMER LV.2]", "(STOLEN)"),
-                    new Value("[SAGE'S EUE LV.8]", "(STOLEN)"),
-                    new Value("[HEAT RESISTANCE LV.6]", "(STOLEN)")
-            )),
-            new Entry("STIGMAS:", List.of(
-                    new Value("[STEAL LV.2]"),
-                    new Value("[REGRESSION]", "(STOLEN)"),
-                    new Value("[TRANSMISSION]", "(STOLEN)")
-            )),
-            new Entry("OVERALL STATS:", List.of(
-                    new Value("[CONSTITUTION LV.6],"),
-                    new Value("[STRENGTH LV.6],"),
-                    new Value("[AGILITY LV.4]"),
-                    new Value("[MAGIC POWER LV.3]")
-            )),
-            new Entry("OVERALL EVALUATION:", true, List.of(
-                    new Value("PRODIGAL DANCER FALLEN FROM GRACE DUE"),
-                    new Value("TO SABOTAGE. RATHER THAN"),
-                    new Value("DESPAIRING, CHOSE TO REVEL IN"),
-                    new Value("DECEPTION AND USE WHAT SHE HAS LEFT"),
-                    new Value("AT HER DISPOSAL. KIND OF PATHETIC AND"),
-                    new Value("A WASTE OF GOOD LOOKS.")
-            ))
-    );
+    /**
+     * Builds the sheet from the two client caches. Lists that the server
+     * has not populated render an explicit empty row rather than vanishing,
+     * so the section headings stay stable between players.
+     */
+    private List<Entry> buildEntries() {
+        SyncCharacterProfilePayload sheet = CharacterClientCache.snapshot();
+        SystemDataSnapshot system = minecraft == null
+                || minecraft.player == null
+                ? null
+                : SystemDataClientCache
+                        .find(minecraft.player.getUUID())
+                        .orElse(null);
+
+        if (sheet == null) {
+            return List.of(new Entry(
+                    "STATUS:",
+                    true,
+                    List.of(new Value("Awaiting system sync..."))
+            ));
+        }
+
+        CharacterProfile profile = sheet.profile();
+        List<Entry> entries = new ArrayList<>();
+
+        entries.add(new Entry("NAME:",
+                List.of(new Value(sheet.playerName().toUpperCase()))));
+        entries.add(new Entry("LEVEL:",
+                List.of(new Value("LV. " + sheet.level()))));
+        if (profile.age() > 0) {
+            entries.add(new Entry("AGE:",
+                    List.of(new Value(String.valueOf(profile.age())))));
+        }
+
+        boolean bound = system != null
+                && !system.constellationName().isBlank();
+        entries.add(new Entry("CONSTELLATION SUPPORT:", List.of(new Value(
+                bound
+                        ? system.constellationName().toUpperCase()
+                        : "[SEARCHING STAR STREAM]",
+                null,
+                bound
+        ))));
+
+        entries.add(new Entry("COINS:", List.of(new Value(
+                system == null ? "0" : String.valueOf(system.coins())
+        ))));
+        entries.add(new Entry("ENERGY:", List.of(new Value(
+                system == null
+                        ? "0 / 0"
+                        : system.energy() + " / " + system.maxEnergy()
+        ))));
+
+        entries.add(new Entry("PERSONAL ATTRIBUTES:",
+                attributeRows(profile.attributes())));
+        entries.add(new Entry("PERSONAL SKILLS:",
+                skillRows(profile.skills())));
+        entries.add(new Entry("STIGMAS:", skillRows(sheet.stigmas())));
+
+        return entries;
+    }
+
+    private static List<Value> skillRows(List<CharacterProfile.Skill> skills) {
+        if (skills.isEmpty()) {
+            return List.of(new Value("[NONE RECORDED]"));
+        }
+        List<Value> rows = new ArrayList<>(skills.size());
+        for (CharacterProfile.Skill skill : skills) {
+            rows.add(new Value(
+                    skill.display(),
+                    skill.stolen() ? "(STOLEN)" : null
+            ));
+        }
+        return rows;
+    }
+
+    private static List<Value> attributeRows(
+            List<CharacterProfile.Attribute> attributes
+    ) {
+        if (attributes.isEmpty()) {
+            return List.of(new Value("[NONE RECORDED]"));
+        }
+        List<Value> rows = new ArrayList<>(attributes.size());
+        for (CharacterProfile.Attribute attribute : attributes) {
+            rows.add(new Value(
+                    attribute.display(),
+                    attribute.rarity().tag()
+            ));
+        }
+        return rows;
+    }
 }

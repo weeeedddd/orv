@@ -4,11 +4,13 @@ import com.weeeedddd.orv.client.gui.widget.GuildTabButton;
 import com.weeeedddd.orv.client.gui.widget.SidebarButton;
 import com.weeeedddd.orv.client.gui.widget.WoodButton;
 import com.weeeedddd.orv.client.guild.GuildClientState;
+import com.weeeedddd.orv.guild.GuildCreationCheck;
 import com.weeeedddd.orv.guild.GuildRole;
 import com.weeeedddd.orv.guild.GuildRoleAction;
 import com.weeeedddd.orv.guild.GuildSnapshot;
 import com.weeeedddd.orv.network.GuildPayloads.GuildRoleActionPayload;
 import com.weeeedddd.orv.network.GuildPayloads.RequestGuildDataPayload;
+import com.weeeedddd.orv.network.CreateGuildPayload;
 import com.weeeedddd.orv.network.GuildPayloads.SendGuildInvitePayload;
 import net.minecraft.Util;
 import net.minecraft.client.gui.GuiGraphics;
@@ -273,22 +275,21 @@ public final class GuildScreen extends Screen {
         int y = layout.contentTop() - 4 + SIDEBAR_PAD;
         int step = size + SIDEBAR_GAP;
 
-        // Creating a guild and editing guild settings have no server-side
-        // payloads yet, so those two entries stay inert rather than
-        // pretending to do something.
+        // The server decides eligibility and ships the verdict in the
+        // snapshot; the button only mirrors it.
+        GuildCreationCheck creation = snapshot.creation();
         SidebarButton create = new SidebarButton(
                 x,
                 y,
                 size,
                 Component.literal("Create Guild"),
                 GuildAtlas.ICON_QUILL_U,
-                () -> {
-                }
+                this::requestGuildCreation
         );
-        create.active = false;
-        create.setTooltip(Tooltip.create(
-                Component.literal("Create Guild — not available yet")
-        ));
+        create.active = creation.allowed();
+        create.setTooltip(Tooltip.create(Component.literal(
+                "Create Guild — " + creation.describe()
+        )));
         addRenderableWidget(create);
 
         addRenderableWidget(new SidebarButton(
@@ -796,6 +797,21 @@ public final class GuildScreen extends Screen {
         PacketDistributor.sendToServer(new GuildRoleActionPayload(
                 target.playerId(),
                 action
+        ));
+    }
+
+    /**
+     * Asks the server to found a guild. The name is taken from the invite
+     * note field when the invite tab is open, otherwise a default is used;
+     * the server validates it either way.
+     */
+    private void requestGuildCreation() {
+        String name = noteDraft == null || noteDraft.isBlank()
+                ? minecraft.player.getGameProfile().getName() + "'s Guild"
+                : noteDraft;
+        PacketDistributor.sendToServer(new CreateGuildPayload(
+                name,
+                "star"
         ));
     }
 

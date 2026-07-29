@@ -31,12 +31,13 @@ class OrvCommandsTest {
     }
 
     @Test
-    void requiresPermissionLevelTwo() {
+    void restrictsCoinCommandsToPermissionLevelTwo() {
         CommandDispatcher<CommandSourceStack> dispatcher =
                 new CommandDispatcher<>();
         OrvCommands.register(dispatcher);
         CommandNode<CommandSourceStack> orv =
                 requiredChild(dispatcher.getRoot(), "orv");
+        CommandNode<CommandSourceStack> coins = requiredChild(orv, "coins");
         CommandSourceStack regularPlayer =
                 mock(CommandSourceStack.class);
         CommandSourceStack administrator =
@@ -44,10 +45,29 @@ class OrvCommandsTest {
         when(regularPlayer.hasPermission(2)).thenReturn(false);
         when(administrator.hasPermission(2)).thenReturn(true);
 
-        assertFalse(orv.canUse(regularPlayer));
-        assertTrue(orv.canUse(administrator));
+        assertFalse(coins.canUse(regularPlayer));
+        assertTrue(coins.canUse(administrator));
         verify(regularPlayer).hasPermission(2);
         verify(administrator).hasPermission(2);
+    }
+
+    @Test
+    void letsAnyPlayerOpenTheirOwnWindows() {
+        CommandDispatcher<CommandSourceStack> dispatcher =
+                new CommandDispatcher<>();
+        OrvCommands.register(dispatcher);
+        CommandNode<CommandSourceStack> orv =
+                requiredChild(dispatcher.getRoot(), "orv");
+        CommandSourceStack regularPlayer =
+                mock(CommandSourceStack.class);
+        when(regularPlayer.hasPermission(2)).thenReturn(false);
+
+        // The root and the window commands must stay open, otherwise a
+        // non-operator could not reach their own status or guild screen.
+        assertTrue(orv.canUse(regularPlayer));
+        assertTrue(requiredChild(orv, "status").canUse(regularPlayer));
+        assertTrue(requiredChild(orv, "window").canUse(regularPlayer));
+        assertTrue(requiredChild(orv, "guild").canUse(regularPlayer));
     }
 
     private static void assertTransactionPath(

@@ -1,5 +1,13 @@
 package com.weeeedddd.orv.command;
 
+import com.mojang.brigadier.Command;
+import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.context.CommandContext;
+import com.weeeedddd.orv.guild.GuildCreationCheck;
+import com.weeeedddd.orv.guild.GuildService;
+import com.weeeedddd.orv.guild.GuildStorage;
+import com.weeeedddd.orv.network.ModNetworking;
+import com.weeeedddd.orv.network.OpenScreenPayload.Target;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -28,10 +36,13 @@ public final class OrvCommands {
     ) {
         dispatcher.register(
                 Commands.literal("orv")
-                        .requires(source ->
-                                source.hasPermission(ADMIN_PERMISSION_LEVEL)
-                        )
+                        // The root is open so players can reach their own
+                        // windows; only the coin subtree needs operator
+                        // rights.
                         .then(Commands.literal("coins")
+                                .requires(source -> source.hasPermission(
+                                        ADMIN_PERMISSION_LEVEL
+                                ))
                                 .then(transaction("add", Operation.ADD))
                                 .then(transaction(
                                         "remove",
@@ -39,7 +50,67 @@ public final class OrvCommands {
                                 ))
                                 .then(transaction("set", Operation.SET))
                         )
+                        .then(openScreen("status", Target.STATUS))
+                        // Alias, so a spoken "open window" maps to a command.
+                        .then(openScreen("window", Target.STATUS))
+                        .then(Commands.literal("guild")
+                                .executes(context -> open(
+                                        context.getSource(),
+                                        Target.GUILD
+                                ))
+                                .then(Commands.literal("create")
+                                        .then(Commands.argument(
+                                                        "name",
+                                                        StringArgumentType
+                                                                .greedyString()
+                                                )
+                                                .executes(
+                                                        OrvCommands::createGuild
+                                                )
+                                        )
+                                )
+                        )
         );
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> openScreen(
+            String name,
+            Target target
+    ) {
+        return Commands.literal(name)
+                .executes(context -> open(context.getSource(), target));
+    }
+
+    private static int open(CommandSourceStack source, Target target) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            source.sendFailure(Component.literal(
+                    "This command must be run by a player."
+            ));
+            return 0;
+        }
+        ModNetworking.openScreen(player, target);
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int createGuild(
+            CommandContext<CommandSourceStack> context
+    ) {
+        ServerPlayer player = context.getSource().getPlayer();
+        if (player == null) {
+            context.getSource().sendFailure(Component.literal(
+                    "This command must be run by a player."
+            ));
+            return 0;
+        }
+
+        String name = StringArgumentType.getString(context, "name");
+        GuildCreationCheck check = GuildService.createGuild(
+                player,
+                name,
+                GuildStorage.DEFAULT_EMBLEM
+        );
+        return check.allowed() ? Command.SINGLE_SUCCESS : 0;
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> transaction(

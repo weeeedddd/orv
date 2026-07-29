@@ -1,6 +1,7 @@
 package com.weeeedddd.orv.data;
 
 import com.weeeedddd.orv.OrvMod;
+import com.weeeedddd.orv.character.CharacterProfile;
 import com.weeeedddd.orv.economy.CoinService;
 import com.weeeedddd.orv.network.ModNetworking;
 import com.weeeedddd.orv.sponsor.IPlayerSponsor;
@@ -63,6 +64,19 @@ public final class ModAttachments {
                             .build()
             );
 
+    public static final DeferredHolder<
+            AttachmentType<?>,
+            AttachmentType<CharacterProfile>
+            > CHARACTER_PROFILE = ATTACHMENT_TYPES.register(
+                    "character_profile",
+                    () -> AttachmentType.builder(
+                                    () -> CharacterProfile.DEFAULT
+                            )
+                            .serialize(CharacterProfile.CODEC)
+                            .copyOnDeath()
+                            .build()
+            );
+
     private ModAttachments() {
     }
 
@@ -100,6 +114,17 @@ public final class ModAttachments {
 
     public static IPlayerSponsor getSponsor(Player player) {
         return player.getData(PLAYER_SPONSOR);
+    }
+
+    public static CharacterProfile getCharacterProfile(Player player) {
+        return player.getData(CHARACTER_PROFILE);
+    }
+
+    public static void setCharacterProfile(
+            ServerPlayer player,
+            CharacterProfile profile
+    ) {
+        player.setData(CHARACTER_PROFILE, profile);
     }
 
     @Deprecated(forRemoval = false)

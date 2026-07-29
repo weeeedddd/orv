@@ -1,5 +1,6 @@
 package com.weeeedddd.orv.client.guild;
 
+import com.weeeedddd.orv.guild.GuildCreationCheck;
 import com.weeeedddd.orv.guild.GuildRole;
 import com.weeeedddd.orv.guild.GuildSnapshot;
 
@@ -12,7 +13,17 @@ public final class GuildClientState {
             new UUID(0L, 0L),
             GuildRole.NONE,
             List.of(),
-            List.of()
+            List.of(),
+            "",
+            // Placeholder until the first snapshot arrives; the server
+            // always overwrites this with a real evaluation.
+            new GuildCreationCheck(
+                    GuildCreationCheck.Status.ALREADY_IN_GUILD,
+                    0,
+                    0L,
+                    0,
+                    0L
+            )
     );
     private static long revision;
 
