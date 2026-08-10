@@ -57,6 +57,9 @@ public final class WoodButton extends AbstractButton {
                 getWidth(),
                 getHeight()
         );
+        // Flush before clearing the tint; GuiGraphics applies the shader
+        // colour when the batch is flushed, not when it is set.
+        graphics.flush();
         graphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
 
         var font = Minecraft.getInstance().font;

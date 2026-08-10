@@ -145,10 +145,14 @@ public final class CharacterInfoScreen extends Screen {
         graphics.fill(x + 6, y + 6, x + panelWidth - 6,
                 y + panelHeight - 6, PANEL_FILL);
 
-        // Constellation field behind the readout.
+        // Constellation field behind the readout. The batch has to be
+        // flushed while the tint is still set: GuiGraphics applies the
+        // shader colour at flush time, so resetting it first would draw the
+        // field at full opacity on top of the text.
         graphics.setColor(1.0F, 1.0F, 1.0F, 0.35F);
         CharacterAtlas.stars(graphics, x + 7, y + 7,
                 panelWidth - 14, panelHeight - 14);
+        graphics.flush();
         graphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
 
         CharacterAtlas.frame(graphics, x, y, panelWidth, panelHeight);
@@ -162,6 +166,9 @@ public final class CharacterInfoScreen extends Screen {
         CharacterAtlas.gear(graphics,
                 x + panelWidth - 14 - CharacterAtlas.GEAR_SIZE,
                 y + panelHeight - 14 - CharacterAtlas.GEAR_SIZE);
+
+        // Chrome first, then the readout batches on top.
+        graphics.flush();
     }
 
     private void renderHeader(

@@ -322,6 +322,10 @@ public final class ORVOverlayHud {
         );
 
         // Scenario-path labyrinth, faint enough that it never fights text.
+        // GuiGraphics batches blits and only applies the shader colour when
+        // the batch is flushed, so the tint has to be flushed before it is
+        // reset - otherwise the labyrinth draws at full opacity over
+        // everything.
         guiGraphics.setColor(1.0F, 1.0F, 1.0F, 0.14F);
         StatusAtlas.labyrinth(
                 guiGraphics,
@@ -330,6 +334,7 @@ public final class ORVOverlayHud {
                 barWidth - 14,
                 BAR_HEIGHT - 14
         );
+        guiGraphics.flush();
         guiGraphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
 
         StatusAtlas.frame(guiGraphics, barX, BAR_TOP, barWidth, BAR_HEIGHT);
@@ -351,6 +356,10 @@ public final class ORVOverlayHud {
                 rightBracketX + rosetteInset,
                 rosetteY
         );
+
+        // Flush the chrome so the readouts batch on top of it rather than
+        // being ordered by render type.
+        guiGraphics.flush();
     }
 
     /** The title plate hanging under the bar, with the channel master. */

@@ -65,6 +65,9 @@ public final class GuildTabButton extends AbstractButton {
                 getWidth(),
                 height
         );
+        // Flush before clearing the tint; GuiGraphics applies the shader
+        // colour when the batch is flushed, not when it is set.
+        graphics.flush();
         graphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
 
         var font = Minecraft.getInstance().font;

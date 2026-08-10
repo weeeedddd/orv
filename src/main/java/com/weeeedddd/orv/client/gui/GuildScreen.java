@@ -27,7 +27,9 @@ import java.util.function.IntConsumer;
 public final class GuildScreen extends Screen {
 
     private static final int PANEL_MAX_WIDTH = 720;
-    private static final int PANEL_HEIGHT = 344;
+    /** Preferred panel height; clamped to the screen when it will not fit. */
+    private static final int PANEL_MAX_HEIGHT = 344;
+    private static final int PANEL_MIN_HEIGHT = 200;
     private static final int PAGE_SIZE = 7;
     private static final int ROW_HEIGHT = 26;
     private static final int MARGIN = 14;
@@ -164,7 +166,7 @@ public final class GuildScreen extends Screen {
                 layout.left(),
                 layout.top(),
                 layout.panelWidth(),
-                PANEL_HEIGHT
+                layout.panelHeight()
         );
         GuildAtlas.nineSlice(
                 graphics,
@@ -172,7 +174,7 @@ public final class GuildScreen extends Screen {
                 layout.left(),
                 layout.top(),
                 layout.panelWidth(),
-                PANEL_HEIGHT
+                layout.panelHeight()
         );
 
         renderPlaque(graphics, layout);
@@ -264,7 +266,7 @@ public final class GuildScreen extends Screen {
                     : layout.left() + layout.panelWidth() - 8 - (int) spread;
             int y = topSide
                     ? layout.top() + 10 + (int) (travel * 0.55)
-                    : layout.top() + PANEL_HEIGHT - 10 - (int) travel;
+                    : layout.top() + layout.panelHeight() - 10 - (int) travel;
 
             int size = 1 + (index % 2);
             graphics.fill(
@@ -911,19 +913,26 @@ public final class GuildScreen extends Screen {
                 PANEL_MAX_WIDTH,
                 Math.max(400, width - 24)
         );
+        // At a high GUI scale the logical screen can be shorter than the
+        // preferred panel, so clamp rather than letting it run off-screen.
+        int panelHeight = Math.max(
+                PANEL_MIN_HEIGHT,
+                Math.min(PANEL_MAX_HEIGHT, height - 16)
+        );
         int left = (width - panelWidth) / 2;
-        int top = Math.max(8, (height - PANEL_HEIGHT) / 2);
+        int top = Math.max(8, (height - panelHeight) / 2);
         int sidebarX = left + panelWidth - MARGIN - SIDEBAR_WIDTH;
 
         return new Layout(
                 left,
                 top,
                 panelWidth,
+                panelHeight,
                 left + MARGIN,
                 sidebarX - 8,
                 top + 62,
                 top + 92,
-                top + PANEL_HEIGHT - MARGIN,
+                top + panelHeight - MARGIN,
                 sidebarX
         );
     }
@@ -933,6 +942,7 @@ public final class GuildScreen extends Screen {
             int left,
             int top,
             int panelWidth,
+            int panelHeight,
             int contentLeft,
             int contentRight,
             int tabTop,
